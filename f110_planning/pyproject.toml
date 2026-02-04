@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "f110_planning"
+version = "0.0.1"
+authors = [
+  {name = "Hongrui Zheng", email = "billyzheng.bz@gmail.com"}
+]
+description = "Planning algorithms for F1TENTH gym environment"
+requires-python = ">=3.7"
+dependencies = [
+  "numpy",
+  "numba",
+  "pyglet",
+  "simple-pid",
+  "f110_gym",
+]
+
+[project.urls]
+Homepage = "https://f1tenth.org"
+
+
