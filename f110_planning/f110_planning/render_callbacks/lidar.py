@@ -1,6 +1,7 @@
 import numpy as np
 import pyglet
 from f110_gym.envs.rendering import EnvRenderer
+from f110_planning.utils import get_side_distances
 
 def render_lidar(env_renderer: EnvRenderer) -> None:
     """
@@ -61,3 +62,44 @@ def render_lidar(env_renderer: EnvRenderer) -> None:
             batch=e.batch
         )
         e.lidar_lines.append(line)
+
+def render_side_distances(env_renderer: EnvRenderer) -> None:
+    """
+    Render the left and right side distances on the screen.
+    """
+    e = env_renderer
+    if e.scans is None:
+        return
+
+    left_dist, right_dist = get_side_distances(e.scans[0])
+
+    if not hasattr(e, "side_dist_labels"):
+        e.side_dist_labels = {
+            "left": pyglet.text.Label(
+                "",
+                font_size=16,
+                x=e.width - 20,
+                y=20,
+                anchor_x="right",
+                color=(255, 255, 255, 255),
+                batch=e.ui_batch
+            ),
+            "right": pyglet.text.Label(
+                "",
+                font_size=16,
+                x=e.width - 20,
+                y=50,
+                anchor_x="right",
+                color=(255, 255, 255, 255),
+                batch=e.ui_batch
+            )
+        }
+
+    e.side_dist_labels["left"].text = f"Left Distance: {left_dist:.2f} m"
+    e.side_dist_labels["right"].text = f"Right Distance: {right_dist:.2f} m"
+    
+    # Update positions in case window was resized
+    e.side_dist_labels["left"].x = e.width - 20
+    e.side_dist_labels["left"].y = 20
+    e.side_dist_labels["right"].x = e.width - 20
+    e.side_dist_labels["right"].y = 50

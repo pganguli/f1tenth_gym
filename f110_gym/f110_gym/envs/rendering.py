@@ -134,6 +134,9 @@ class EnvRenderer(pyglet.window.Window):
 
         # current batch that keeps track of all graphics
         self.batch = pyglet.graphics.Batch()
+        
+        # batch for UI elements that stay fixed in screen space
+        self.ui_batch = pyglet.graphics.Batch()
 
         # current env map
         self.map_points = None
@@ -153,18 +156,20 @@ class EnvRenderer(pyglet.window.Window):
             "Lap Time: {laptime:.2f}, Ego Lap Count: {count:.0f}".format(
                 laptime=0.0, count=0.0
             ),
-            font_size=36,
-            x=width // 2,
-            y=50,
-            anchor_x="center",
-            anchor_y="center",
+            font_size=24,
+            x=width - 20,
+            y=height - 20,
+            anchor_x="right",
+            anchor_y="top",
             color=(255, 255, 255, 255),
         )
 
-        # current scans for rendering
-        self.scans = None
-
         self.fps_display = pyglet.window.FPSDisplay(self)
+        self.fps_display.label.x = 20
+        self.fps_display.label.y = height - 20
+        self.fps_display.label.anchor_y = "top"
+        self.fps_display.label.font_size = 16
+        self.fps_display.label.color = (200, 200, 200, 255)
 
     def update_map(self, map_path: str, map_ext: str) -> None:
         """
@@ -258,9 +263,12 @@ class EnvRenderer(pyglet.window.Window):
         self.zoomed_width = self.zoom_level * width
         self.zoomed_height = self.zoom_level * height
         
-        # Update score label position
-        self.score_label.x = width // 2
-        self.score_label.y = 50
+        # Update UI element positions
+        self.score_label.x = width - 20
+        self.score_label.y = height - 20
+        
+        self.fps_display.label.x = 20
+        self.fps_display.label.y = height - 20
 
     def on_mouse_drag(
         self, x: int, y: int, dx: int, dy: int, buttons: int, modifiers: int
@@ -317,8 +325,8 @@ class EnvRenderer(pyglet.window.Window):
             mouse_x_in_world = self.left + mouse_x * self.zoomed_width
             mouse_y_in_world = self.bottom + mouse_y * self.zoomed_height
 
-            self.zoomed_width *= f
-            self.zoomed_height *= f
+            self.zoomed_width = int(self.zoomed_width * f)
+            self.zoomed_height = int(self.zoomed_height * f)
 
             self.left = mouse_x_in_world - mouse_x * self.zoomed_width
             self.right = mouse_x_in_world + (1 - mouse_x) * self.zoomed_width
@@ -370,6 +378,14 @@ class EnvRenderer(pyglet.window.Window):
         # Draw all batches
         with self.window_block():
             self.batch.draw()
+        
+        # Set up screen space projection for UI elements
+        self.projection = pyglet.math.Mat4.orthogonal_projection(
+            0, self.width, 0, self.height, -1, 1
+        )
+        
+        # Draw UI batch
+        self.ui_batch.draw()
         
         # Draw UI elements (score label and fps) in screen space
         self.score_label.draw()

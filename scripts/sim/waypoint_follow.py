@@ -36,10 +36,11 @@ def main():
         render_fps=60,
     )
 
-    from f110_planning.render_callbacks import camera_tracking, render_lidar, create_waypoint_renderer
+    from f110_planning.render_callbacks import camera_tracking, render_lidar, create_waypoint_renderer, render_side_distances
     # Add callbacks
     env.unwrapped.add_render_callback(camera_tracking)
     env.unwrapped.add_render_callback(render_lidar)
+    env.unwrapped.add_render_callback(render_side_distances)
     if waypoints.size > 0:
         render_waypoints = create_waypoint_renderer(waypoints)
         env.unwrapped.add_render_callback(render_waypoints)
