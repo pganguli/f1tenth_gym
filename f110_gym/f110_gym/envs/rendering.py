@@ -1,11 +1,15 @@
 """
 Rendering engine for f1tenth gym env based on pyglet and OpenGL
 Author: Hongrui Zheng
+Updated for pyglet 2.x compatibility
 """
 
 # opengl stuff
 import pyglet
-from pyglet.gl import *
+
+# In pyglet 2.x, legacy GL functions need to be imported from gl_compat or use ctypes
+# We use pyglet's built-in projection handling instead
+from pyglet.gl import Config
 
 # other
 import numpy as np
@@ -23,6 +27,72 @@ ZOOM_OUT_FACTOR = 1 / ZOOM_IN_FACTOR
 # vehicle shape constants
 CAR_LENGTH = 0.58
 CAR_WIDTH = 0.31
+
+
+class CarShape:
+    """
+    Custom shape class for rendering cars as quads using pyglet 2.x shapes API.
+    """
+
+    def __init__(self, vertices: list[float], color: tuple[int, int, int], batch: pyglet.graphics.Batch):
+        """
+        Create a car shape from 4 corner vertices.
+        
+        Args:
+            vertices: List of 8 floats [x1, y1, x2, y2, x3, y3, x4, y4]
+            color: RGB tuple (r, g, b)
+            batch: pyglet Batch to add the shape to
+        """
+        self._batch = batch
+        self._color = color
+        self._vertices_data = vertices
+        
+        # Create two triangles to form a quad (pyglet 2.x doesn't have GL_QUADS directly)
+        # Triangle 1: vertices 0, 1, 2
+        # Triangle 2: vertices 0, 2, 3
+        self._triangles: list[pyglet.shapes.Triangle] = []
+        self._update_triangles()
+
+    def _update_triangles(self):
+        """Update the triangle shapes based on current vertices."""
+        # Delete old triangles
+        for tri in self._triangles:
+            tri.delete()
+        self._triangles = []
+        
+        v = self._vertices_data
+        if len(v) >= 8:
+            # Triangle 1: v0, v1, v2
+            tri1 = pyglet.shapes.Triangle(
+                v[0], v[1],  # vertex 0
+                v[2], v[3],  # vertex 1
+                v[4], v[5],  # vertex 2
+                color=self._color,
+                batch=self._batch
+            )
+            # Triangle 2: v0, v2, v3
+            tri2 = pyglet.shapes.Triangle(
+                v[0], v[1],  # vertex 0
+                v[4], v[5],  # vertex 2
+                v[6], v[7],  # vertex 3
+                color=self._color,
+                batch=self._batch
+            )
+            self._triangles = [tri1, tri2]
+
+    @property
+    def vertices(self) -> list[float]:
+        return self._vertices_data
+
+    @vertices.setter
+    def vertices(self, value: list[float]):
+        self._vertices_data = value
+        self._update_triangles()
+
+    def delete(self):
+        for tri in self._triangles:
+            tri.delete()
+        self._triangles = []
 
 
 class EnvRenderer(pyglet.window.Window):
@@ -46,8 +116,8 @@ class EnvRenderer(pyglet.window.Window):
             width, height, config=conf, resizable=True, vsync=False, *args, **kwargs
         )
 
-        # gl init
-        glClearColor(9 / 255, 32 / 255, 87 / 255, 1.0)
+        # Set background color
+        pyglet.gl.glClearColor(9 / 255, 32 / 255, 87 / 255, 1.0)
 
         # initialize camera values
         self.left = -width / 2
@@ -58,11 +128,16 @@ class EnvRenderer(pyglet.window.Window):
         self.zoomed_width = width
         self.zoomed_height = height
 
+        # Camera offset for panning
+        self.camera_x = 0.0
+        self.camera_y = 0.0
+
         # current batch that keeps track of all graphics
         self.batch = pyglet.graphics.Batch()
 
         # current env map
         self.map_points = None
+        self.map_point_shapes: list[pyglet.shapes.Circle] = []
 
         # current env agent poses, (num_agents, 3), columns are (x, y, theta)
         self.poses = None
@@ -70,20 +145,20 @@ class EnvRenderer(pyglet.window.Window):
         # current env agent vertices, (num_agents, 4, 2), 2nd and 3rd dimensions are the 4 corners in 2D
         self.vertices = None
 
+        # car shapes
+        self.cars: list[CarShape] = []
+
         # current score label
         self.score_label = pyglet.text.Label(
             "Lap Time: {laptime:.2f}, Ego Lap Count: {count:.0f}".format(
                 laptime=0.0, count=0.0
             ),
             font_size=36,
-            x=0,
-            y=-800,
+            x=width // 2,
+            y=50,
             anchor_x="center",
             anchor_y="center",
-            # width=0.01,
-            # height=0.01,
             color=(255, 255, 255, 255),
-            batch=self.batch,
         )
 
         self.fps_display = pyglet.window.FPSDisplay(self)
@@ -131,14 +206,25 @@ class EnvRenderer(pyglet.window.Window):
         map_mask = map_img == 0.0
         map_mask_flat = map_mask.flatten()
         map_points = 50.0 * map_coords[:, map_mask_flat].T
+        
+        # Clear old map point shapes
+        for shape in self.map_point_shapes:
+            shape.delete()
+        self.map_point_shapes = []
+        
+        # Create circle shapes for map points (pyglet 2.x compatible)
+        # Using small circles to represent points
+        point_color = (183, 193, 222)
         for i in range(map_points.shape[0]):
-            self.batch.add(
-                1,
-                GL_POINTS,
-                None,
-                ("v3f/stream", [map_points[i, 0], map_points[i, 1], map_points[i, 2]]),
-                ("c3B/stream", [183, 193, 222]),
+            point = pyglet.shapes.Circle(
+                x=map_points[i, 0],
+                y=map_points[i, 1],
+                radius=1.0,  # Small radius for point-like appearance
+                color=point_color,
+                batch=self.batch
             )
+            self.map_point_shapes.append(point)
+        
         self.map_points = map_points
 
     def on_resize(self, width: int, height: int) -> None:
@@ -166,6 +252,10 @@ class EnvRenderer(pyglet.window.Window):
         self.top = self.zoom_level * height / 2
         self.zoomed_width = self.zoom_level * width
         self.zoomed_height = self.zoom_level * height
+        
+        # Update score label position
+        self.score_label.x = width // 2
+        self.score_label.y = 50
 
     def on_mouse_drag(
         self, x: int, y: int, dx: int, dy: int, buttons: int, modifiers: int
@@ -186,6 +276,8 @@ class EnvRenderer(pyglet.window.Window):
         """
 
         # pan camera
+        self.camera_x += dx * self.zoom_level
+        self.camera_y += dy * self.zoom_level
         self.left -= dx * self.zoom_level
         self.right -= dx * self.zoom_level
         self.bottom -= dy * self.zoom_level
@@ -262,27 +354,25 @@ class EnvRenderer(pyglet.window.Window):
         if self.poses is None:
             raise Exception("Agent poses not updated for renderer.")
 
-        # Initialize Projection matrix
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
+        # Clear window
+        self.clear()
 
-        # Initialize Modelview matrix
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
-        # Save the default modelview matrix
-        glPushMatrix()
-
-        # Clear window with ClearColor
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-        # Set orthographic projection matrix
-        glOrtho(self.left, self.right, self.bottom, self.top, 1, -1)
+        # Set up the projection for 2D rendering with camera
+        self.projection = pyglet.math.Mat4.orthogonal_projection(
+            self.left, self.right, self.bottom, self.top, -1, 1
+        )
 
         # Draw all batches
-        self.batch.draw()
+        with self.window_block():
+            self.batch.draw()
+        
+        # Draw UI elements (score label and fps) in screen space
+        self.score_label.draw()
         self.fps_display.draw()
-        # Remove default modelview matrix
-        glPopMatrix()
+
+    def window_block(self):
+        """Context manager for setting window projection"""
+        return _ProjectionContext(self)
 
     def update_obs(self, obs: dict[str, Any]) -> None:
         """
@@ -309,15 +399,10 @@ class EnvRenderer(pyglet.window.Window):
                         np.array([0.0, 0.0, 0.0]), CAR_LENGTH, CAR_WIDTH
                     )
                     vertices = list(vertices_np.flatten())
-                    car = self.batch.add(
-                        4,
-                        GL_QUADS,
-                        None,
-                        ("v2f", vertices),
-                        (
-                            "c3B",
-                            [172, 97, 185, 172, 97, 185, 172, 97, 185, 172, 97, 185],
-                        ),
+                    car = CarShape(
+                        vertices=vertices,
+                        color=(172, 97, 185),  # Ego car color
+                        batch=self.batch
                     )
                     self.cars.append(car)
                 else:
@@ -325,12 +410,10 @@ class EnvRenderer(pyglet.window.Window):
                         np.array([0.0, 0.0, 0.0]), CAR_LENGTH, CAR_WIDTH
                     )
                     vertices = list(vertices_np.flatten())
-                    car = self.batch.add(
-                        4,
-                        GL_QUADS,
-                        None,
-                        ("v2f", vertices),
-                        ("c3B", [99, 52, 94, 99, 52, 94, 99, 52, 94, 99, 52, 94]),
+                    car = CarShape(
+                        vertices=vertices,
+                        color=(99, 52, 94),  # Other car color
+                        batch=self.batch
                     )
                     self.cars.append(car)
 
@@ -346,3 +429,18 @@ class EnvRenderer(pyglet.window.Window):
                 laptime=obs["lap_times"][0], count=obs["lap_counts"][obs["ego_idx"]]
             )
         )
+
+
+class _ProjectionContext:
+    """Context manager for temporarily setting window projection."""
+    
+    def __init__(self, window: EnvRenderer):
+        self.window = window
+    
+    def __enter__(self):
+        # Store old view and set new projection
+        self.window.view = pyglet.math.Mat4()
+        return self
+    
+    def __exit__(self, *args):
+        pass

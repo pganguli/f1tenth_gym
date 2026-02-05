@@ -13,7 +13,7 @@ Map 3: Skirkanich
 
 import numpy as np
 
-import gym
+import gymnasium as gym
 
 thetas = np.linspace(-2.35, 2.35, num=1080)
 

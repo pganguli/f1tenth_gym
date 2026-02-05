@@ -13,16 +13,15 @@ import numpy as np
 # gl
 import pyglet
 
-import gym
+import gymnasium as gym
+from gymnasium import spaces
 
 # base classes
 from .base_classes import Integrator, Simulator
 
 pyglet.options["debug_gl"] = False
 
-# constants
-
-# rendering
+# rendering constants
 VIDEO_W = 600
 VIDEO_H = 400
 WINDOW_W = 1000
@@ -31,7 +30,7 @@ WINDOW_H = 800
 
 class F110Env(gym.Env):
     """
-    OpenAI gym environment for F1TENTH
+    OpenAI/Gymnasium environment for F1TENTH
 
     Env should be initialized by calling gym.make('f110_gym:f110-v0', **kwargs)
 
@@ -72,7 +71,7 @@ class F110Env(gym.Env):
             lidar_dist (float, default=0): vertical distance between LiDAR and backshaft
     """
 
-    metadata = {"render.modes": ["human", "human_fast"]}
+    metadata = {"render_modes": ["human", "human_fast"], "render_fps": 100}
 
     # rendering
     renderer = None
@@ -135,7 +134,7 @@ class F110Env(gym.Env):
         self.poses_x = []
         self.poses_y = []
         self.poses_theta = []
-        self.collisions = np.zeros((self.num_agents,))
+        self.collisions = np.zeros((self.num_agents,), dtype=np.float64)
         # TODO: collision_idx not used yet
         # self.collision_idx = -1 * np.ones((self.num_agents, ))
 
@@ -144,8 +143,8 @@ class F110Env(gym.Env):
         self.num_toggles = 0
 
         # race info
-        self.lap_times = np.zeros((self.num_agents,))
-        self.lap_counts = np.zeros((self.num_agents,))
+        self.lap_times = np.zeros((self.num_agents,), dtype=np.float64)
+        self.lap_counts = np.zeros((self.num_agents,), dtype=np.float64)
         self.current_time = 0.0
 
         # finish line info
@@ -171,6 +170,31 @@ class F110Env(gym.Env):
 
         # stateful observations for rendering
         self.render_obs = None
+
+        # Gymnasium requires action_space and observation_space
+        # Action space: (num_agents, 2) - [steering, velocity] per agent
+        self.action_space = spaces.Box(
+            low=np.array([[self.params["s_min"], self.params["v_min"]]] * self.num_agents, dtype=np.float64),
+            high=np.array([[self.params["s_max"], self.params["v_max"]]] * self.num_agents, dtype=np.float64),
+            dtype=np.float64,
+        )
+
+        # Observation space: Dict space with various observations
+        # scans shape depends on lidar config, using 1080 beams as default
+        num_beams = 1080
+        self.observation_space = spaces.Dict({
+            "ego_idx": spaces.Discrete(self.num_agents),
+            "scans": spaces.Box(low=0.0, high=30.0, shape=(self.num_agents, num_beams), dtype=np.float64),
+            "poses_x": spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64),
+            "poses_y": spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64),
+            "poses_theta": spaces.Box(low=-np.pi, high=np.pi, shape=(self.num_agents,), dtype=np.float64),
+            "linear_vels_x": spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64),
+            "linear_vels_y": spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64),
+            "ang_vels_z": spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64),
+            "collisions": spaces.Box(low=0.0, high=1.0, shape=(self.num_agents,), dtype=np.float64),
+            "lap_times": spaces.Box(low=0.0, high=np.inf, shape=(self.num_agents,), dtype=np.float64),
+            "lap_counts": spaces.Box(low=0.0, high=np.inf, shape=(self.num_agents,), dtype=np.float64),
+        })
 
     def _check_done(self) -> tuple[bool, bool]:
         """
@@ -233,7 +257,7 @@ class F110Env(gym.Env):
 
     def step(
         self, action: np.ndarray
-    ) -> tuple[dict[str, Any], float, bool, dict[str, Any]]:
+    ) -> tuple[dict[str, Any], float, bool, bool, dict[str, Any]]:
         """
         Step function for the gym env
 
@@ -243,7 +267,8 @@ class F110Env(gym.Env):
         Returns:
             obs (dict): observation of the current step
             reward (float, default=self.timestep): step reward, currently is physics timestep
-            done (bool): if the simulation is done
+            terminated (bool): if the simulation is terminated
+            truncated (bool): if the simulation is truncated
             info (dict): auxillary information dictionary
         """
 
@@ -273,27 +298,43 @@ class F110Env(gym.Env):
         # check done
         done, toggle_list = self._check_done()
         info = {"checkpoint_done": toggle_list}
+        
+        terminated = done
+        truncated = False
 
-        return obs, reward, done, info
+        return obs, reward, terminated, truncated, info
 
     def reset(
-        self, poses: np.ndarray
-    ) -> tuple[dict[str, Any], float, bool, dict[str, Any]]:
+        self,
+        *,
+        seed: int | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """
         Reset the gym environment by given poses
 
         Args:
-            poses (np.ndarray (num_agents, 3)): poses to reset agents to
+            seed: random seed for the environment
+            options: dictionary of options, including 'poses'
 
         Returns:
             obs (dict): observation of the current step
-            reward (float, default=self.timestep): step reward, currently is physics timestep
-            done (bool): if the simulation is done
             info (dict): auxillary information dictionary
         """
+        super().reset(seed=seed)
+        
+        if options is not None:
+            poses = options.get("poses")
+        else:
+            poses = None
+
+        if poses is None:
+             # Default poses if not provided (example fallback)
+            poses = np.zeros((self.num_agents, 3))
+            
         # reset counters and data members
         self.current_time = 0.0
-        self.collisions = np.zeros((self.num_agents,))
+        self.collisions = np.zeros((self.num_agents,), dtype=np.float64)
         self.num_toggles = 0
         self.near_start = True
         self.near_starts = np.array([True] * self.num_agents)
@@ -321,7 +362,7 @@ class F110Env(gym.Env):
 
         # get no input observations
         action = np.zeros((self.num_agents, 2))
-        obs, reward, done, info = self.step(action)
+        obs, _, _, _, info = self.step(action)
 
         self.render_obs = {
             "ego_idx": obs["ego_idx"],
@@ -332,7 +373,7 @@ class F110Env(gym.Env):
             "lap_counts": obs["lap_counts"],
         }
 
-        return obs, reward, done, info
+        return obs, info
 
     def update_map(self, map_path: str, map_ext: str) -> None:
         """

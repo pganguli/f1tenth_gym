@@ -7,9 +7,8 @@ import numpy as np
 import yaml
 from f110_gym.envs.base_classes import Integrator
 
-import gym
-
-from f110_dnn.planners import PurePursuitPlanner
+import gymnasium as gym
+from f110_planning.tracking import PurePursuitPlanner
 
 
 def main():
@@ -20,13 +19,22 @@ def main():
         "vgain": 1.375,
     }  # 0.90338203837889}
 
-    with open("data/config.yaml") as file:
-        conf_dict = yaml.load(file, Loader=yaml.FullLoader)
-    conf = Namespace(**conf_dict)
+    # Configuration for Example map
+    conf = Namespace(
+        map_path="data/maps/Example/Example",
+        map_ext=".png",
+        sx=0.0,
+        sy=0.0,
+        stheta=0.0,
+    )
 
-    planner = PurePursuitPlanner(
-        conf, (0.17145 + 0.15875)
-    )  # FlippyPlanner(speed=0.2, flip_every=1, steer=10)
+    try:
+        waypoints = np.loadtxt("data/maps/Example/Example_raceline.csv", delimiter=";", skiprows=3)
+    except Exception:
+        print("Could not load waypoints, using empty")
+        waypoints = np.array([])
+
+    planner = PurePursuitPlanner(waypoints=waypoints)
 
     def render_callback(env_renderer):
         # custom extra drawing function
@@ -44,7 +52,7 @@ def main():
         e.top = top + 800
         e.bottom = bottom - 800
 
-        planner.render_waypoints(env_renderer)
+        # planner.render_waypoints(env_renderer)
 
     env = gym.make(
         "f110_gym:f110-v0",
@@ -53,28 +61,26 @@ def main():
         num_agents=1,
         timestep=0.01,
         integrator=Integrator.RK4,
+        render_mode="human",
     )
-    env.add_render_callback(render_callback)
+    env.unwrapped.add_render_callback(render_callback)
 
-    obs, step_reward, done, info = env.reset(
-        np.array([[conf.sx, conf.sy, conf.stheta]])
+    obs, info = env.reset(
+        options={"poses": np.array([[conf.sx, conf.sy, conf.stheta]])}
     )
     env.render()
 
     laptime = 0.0
     start = time.time()
 
+    done = False
     while not done:
-        speed, steer = planner.plan(
-            obs["poses_x"][0],
-            obs["poses_y"][0],
-            obs["poses_theta"][0],
-            work["tlad"],
-            work["vgain"],
-        )
-        obs, step_reward, done, info = env.step(np.array([[steer, speed]]))
+        action = planner.plan(obs)
+        speed, steer = action.speed, action.steer
+        obs, step_reward, terminated, truncated, info = env.step(np.array([[steer, speed]]))
+        done = terminated or truncated
         laptime += step_reward
-        env.render(mode="human")
+        env.render()
 
     print("Sim elapsed time:", laptime, "Real elapsed time:", time.time() - start)
 

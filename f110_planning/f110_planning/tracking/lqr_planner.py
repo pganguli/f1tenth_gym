@@ -180,9 +180,9 @@ class LQRPlanner(BasePlanner):
         # Define a numpy array that includes the current vehicle state: x,y, theta, veloctiy
         vehicle_state = np.array(
             [
-                obs["pose_x"][0],
-                obs["pose_y"][0],
-                obs["pose_theta"][0],
+                obs["poses_x"][0],
+                obs["poses_y"][0],
+                obs["poses_theta"][0],
                 obs["linear_vels_x"][0],
             ]
         )

@@ -1,9 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, NamedTuple
 
-from .misc import FlippyPlanner, ManualPlanner, RandomPlanner
-from .tracking import PurePursuitPlanner
-
 
 class Action(NamedTuple):
     steer: float
@@ -13,6 +10,11 @@ class Action(NamedTuple):
 class BasePlanner(ABC):
     @abstractmethod
     def plan(self, obs: dict[str, list[Any]]) -> Action: ...
+
+
+# Import submodules AFTER defining Action and BasePlanner to avoid circular imports
+from .misc import FlippyPlanner, ManualPlanner, RandomPlanner
+from .tracking import PurePursuitPlanner
 
 
 __all__ = [

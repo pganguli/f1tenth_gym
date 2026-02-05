@@ -1,4 +1,4 @@
-from pyglet import canvas as pyg_canvas
+from pyglet import display as pyg_display
 from pyglet import window as pyg_window
 
 from typing import Any
@@ -12,7 +12,7 @@ class ManualPlanner(BasePlanner):
 
     @staticmethod
     def _kbd_init():
-        display = pyg_canvas.get_display()
+        display = pyg_display.get_display()
         keys = pyg_window.key.KeyStateHandler()
         windows = display.get_windows()
         if not windows:

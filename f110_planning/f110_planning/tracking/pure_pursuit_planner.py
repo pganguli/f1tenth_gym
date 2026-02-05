@@ -84,7 +84,7 @@ class PurePursuitPlanner(BasePlanner):
             speed (float): commanded vehicle longitudinal velocity
             steering_angle (float):  commanded vehicle steering angle
         """
-        position = np.array([obs["pose_x"][0], obs["pose_y"][0]])
+        position = np.array([obs["poses_x"][0], obs["poses_y"][0]])
         lookahead_point = self._get_current_waypoint(self.lookahead_distance, position)
 
         if lookahead_point is None:
@@ -92,7 +92,7 @@ class PurePursuitPlanner(BasePlanner):
             return Action(steer=0.0, speed=0.0)
 
         speed, steering_angle = get_actuation(
-            obs["pose_theta"][0],
+            obs["poses_theta"][0],
             lookahead_point,
             position,
             self.lookahead_distance,
