@@ -71,7 +71,7 @@ class F110Env(gym.Env):
             lidar_dist (float, default=0): vertical distance between LiDAR and backshaft
     """
 
-    metadata = {"render_modes": ["human", "human_fast"], "render_fps": 100}
+    metadata = {"render_modes": ["human", "human_fast"], "render_fps": 200}
 
     # rendering
     renderer = None
@@ -81,6 +81,8 @@ class F110Env(gym.Env):
     def __init__(self, **kwargs):
         # kwargs extraction
         self.seed = kwargs.get("seed", 12345)
+        self.render_mode = kwargs.get("render_mode", "human")
+        self.render_fps = kwargs.get("render_fps", 200)
         self.map_name = kwargs.get("map", "vegas")
 
         # different default maps
@@ -151,10 +153,10 @@ class F110Env(gym.Env):
         self.num_toggles = 0
         self.near_start = True
         self.near_starts = np.array([True] * self.num_agents)
-        self.toggle_list = np.zeros((self.num_agents,))
-        self.start_xs = np.zeros((self.num_agents,))
-        self.start_ys = np.zeros((self.num_agents,))
-        self.start_thetas = np.zeros((self.num_agents,))
+        self.toggle_list = np.zeros((self.num_agents,), dtype=np.float64)
+        self.start_xs = np.zeros((self.num_agents,), dtype=np.float64)
+        self.start_ys = np.zeros((self.num_agents,), dtype=np.float64)
+        self.start_thetas = np.zeros((self.num_agents,), dtype=np.float64)
         self.start_rot = np.eye(2)
 
         # initiate stuff
@@ -286,6 +288,7 @@ class F110Env(gym.Env):
             "poses_theta": obs["poses_theta"],
             "lap_times": obs["lap_times"],
             "lap_counts": obs["lap_counts"],
+            "scans": obs["scans"],
         }
 
         # times
@@ -338,7 +341,7 @@ class F110Env(gym.Env):
         self.num_toggles = 0
         self.near_start = True
         self.near_starts = np.array([True] * self.num_agents)
-        self.toggle_list = np.zeros((self.num_agents,))
+        self.toggle_list = np.zeros((self.num_agents,), dtype=np.float64)
 
         # states after reset
         self.start_xs = poses[:, 0]
@@ -371,6 +374,7 @@ class F110Env(gym.Env):
             "poses_theta": obs["poses_theta"],
             "lap_times": obs["lap_times"],
             "lap_counts": obs["lap_counts"],
+            "scans": obs["scans"],
         }
 
         return obs, info
@@ -411,7 +415,7 @@ class F110Env(gym.Env):
 
         F110Env.render_callbacks.append(callback_func)
 
-    def render(self, mode: str = "human") -> None:
+    def render(self) -> None:
         """
         Renders the environment with pyglet. Use mouse scroll in the window to zoom in/out, use mouse click drag to pan. Shows the agents, the map, current fps (bottom left corner), and the race information near as text.
 
@@ -423,7 +427,6 @@ class F110Env(gym.Env):
         Returns:
             None
         """
-        assert mode in ["human", "human_fast"]
 
         if F110Env.renderer is None:
             # first call, initialize everything
@@ -440,7 +443,7 @@ class F110Env(gym.Env):
         F110Env.renderer.dispatch_events()
         F110Env.renderer.on_draw()
         F110Env.renderer.flip()
-        if mode == "human":
-            time.sleep(0.005)
-        elif mode == "human_fast":
+        if self.render_mode == "human":
+            time.sleep(1.0 / self.render_fps)
+        elif self.render_mode == "human_fast":
             pass

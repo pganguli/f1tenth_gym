@@ -161,6 +161,9 @@ class EnvRenderer(pyglet.window.Window):
             color=(255, 255, 255, 255),
         )
 
+        # current scans for rendering
+        self.scans = None
+
         self.fps_display = pyglet.window.FPSDisplay(self)
 
     def update_map(self, map_path: str, map_ext: str) -> None:
@@ -176,19 +179,21 @@ class EnvRenderer(pyglet.window.Window):
         """
 
         # load map metadata
-        with open(map_path + ".yaml", "r") as yaml_stream:
-            try:
+        try:
+            with open(map_path + ".yaml", "r") as yaml_stream:
                 map_metadata = yaml.safe_load(yaml_stream)
                 map_resolution = map_metadata["resolution"]
                 origin = map_metadata["origin"]
                 origin_x = origin[0]
                 origin_y = origin[1]
-            except yaml.YAMLError as ex:
-                print(ex)
+        except (yaml.YAMLError, IOError, KeyError) as ex:
+            print(f"Error loading map metadata: {ex}")
+            # Fallback or re-raise? Re-raising since map is essential for rendering.
+            raise
 
         # load map image
         map_img = np.array(
-            Image.open(map_path + map_ext).transpose(Image.FLIP_TOP_BOTTOM)
+            Image.open(map_path + map_ext).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
         ).astype(np.float64)
         map_height = map_img.shape[0]
         map_width = map_img.shape[1]
@@ -385,6 +390,7 @@ class EnvRenderer(pyglet.window.Window):
             None
         """
 
+        self.scans = obs.get("scans")
         self.ego_idx = obs["ego_idx"]
         poses_x = obs["poses_x"]
         poses_y = obs["poses_y"]

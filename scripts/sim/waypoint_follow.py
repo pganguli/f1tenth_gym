@@ -12,47 +12,26 @@ from f110_planning.tracking import PurePursuitPlanner
 
 
 def main():
-    work = {
-        "mass": 3.463388126201571,
-        "lf": 0.15597534362552312,
-        "tlad": 0.82461887897713965,
-        "vgain": 1.375,
-    }  # 0.90338203837889}
-
     # Configuration for Example map
     conf = Namespace(
         map_path="data/maps/Example/Example",
         map_ext=".png",
-        sx=0.0,
+        sx=0.7,
         sy=0.0,
-        stheta=0.0,
+        stheta=1.37079632679,
     )
 
     try:
         waypoints = np.loadtxt("data/maps/Example/Example_raceline.csv", delimiter=";", skiprows=3)
+        # Reorder columns: CSV is [s, x, y, th, kappa, v, a]
+        # Planner/Renderer expect [x, y, v, th]
+        # User indices: x=1, y=2, th=3, v=5
+        waypoints = waypoints[:, [1, 2, 5, 3]]
     except Exception:
         print("Could not load waypoints, using empty")
         waypoints = np.array([])
 
     planner = PurePursuitPlanner(waypoints=waypoints)
-
-    def render_callback(env_renderer):
-        # custom extra drawing function
-
-        e = env_renderer
-
-        # update camera to follow car
-        x = e.cars[0].vertices[::2]
-        y = e.cars[0].vertices[1::2]
-        top, bottom, left, right = max(y), min(y), min(x), max(x)
-        e.score_label.x = left
-        e.score_label.y = top - 700
-        e.left = left - 800
-        e.right = right + 800
-        e.top = top + 800
-        e.bottom = bottom - 800
-
-        # planner.render_waypoints(env_renderer)
 
     env = gym.make(
         "f110_gym:f110-v0",
@@ -61,9 +40,17 @@ def main():
         num_agents=1,
         timestep=0.01,
         integrator=Integrator.RK4,
-        render_mode="human",
+        render_mode="human_fast",
+        render_fps=60,
     )
-    env.unwrapped.add_render_callback(render_callback)
+
+    from f110_planning.render_callbacks import camera_tracking, render_lidar, create_waypoint_renderer
+    # Add callbacks
+    env.unwrapped.add_render_callback(camera_tracking)
+    env.unwrapped.add_render_callback(render_lidar)
+    if waypoints.size > 0:
+        render_waypoints = create_waypoint_renderer(waypoints)
+        env.unwrapped.add_render_callback(render_waypoints)
 
     obs, info = env.reset(
         options={"poses": np.array([[conf.sx, conf.sy, conf.stheta]])}
