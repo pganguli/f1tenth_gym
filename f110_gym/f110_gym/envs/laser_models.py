@@ -4,14 +4,13 @@ Author: Hongrui Zheng
 """
 
 import os
-
+from typing import Optional
 
 import numpy as np
 import yaml
 from numba import njit
 from PIL import Image
 from scipy.ndimage import distance_transform_edt as edt
-from typing import Optional
 
 
 def get_dt(bitmap: np.ndarray, resolution: float) -> np.ndarray:

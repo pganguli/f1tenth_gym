@@ -3,11 +3,10 @@ Utility functions for motion planners
 """
 
 from .geometry_utils import get_rotation_matrix, pi_2_pi, quat_2_rpy
+from .lidar_utils import get_side_distances
 from .lqr_utils import solve_lqr, update_matrix
 from .pure_pursuit_utils import get_actuation, intersect_point, nearest_point
 from .reactive_utils import circularOffset, getPoint, index2Angle, polar2Rect
-from .lidar_utils import get_side_distances
-
 from .waypoint_utils import load_waypoints
 
 __all__ = [

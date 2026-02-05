@@ -1,9 +1,11 @@
-import numpy as np
 from typing import Any
+
+import numpy as np
+
 from .collision_models import get_vertices
 from .dynamic_models import pid, vehicle_dynamics_st
-from .laser_models import ScanSimulator2D, check_ttc_jit, ray_cast
 from .integrator import Integrator
+from .laser_models import ScanSimulator2D, check_ttc_jit, ray_cast
 
 
 class RaceCar:

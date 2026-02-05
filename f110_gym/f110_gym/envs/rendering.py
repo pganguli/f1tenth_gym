@@ -5,17 +5,17 @@ Updated for pyglet 2.x compatibility
 """
 
 # opengl stuff
+from typing import Any
+
+# other
+import numpy as np
 import pyglet
+import yaml
+from PIL import Image
 
 # In pyglet 2.x, legacy GL functions need to be imported from gl_compat or use ctypes
 # We use pyglet's built-in projection handling instead
 from pyglet.gl import Config
-
-# other
-import numpy as np
-from typing import Any
-from PIL import Image
-import yaml
 
 # helpers
 from .collision_models import get_vertices
@@ -34,10 +34,15 @@ class CarShape:
     Custom shape class for rendering cars as quads using pyglet 2.x shapes API.
     """
 
-    def __init__(self, vertices: list[float], color: tuple[int, int, int], batch: pyglet.graphics.Batch):
+    def __init__(
+        self,
+        vertices: list[float],
+        color: tuple[int, int, int],
+        batch: pyglet.graphics.Batch,
+    ):
         """
         Create a car shape from 4 corner vertices.
-        
+
         Args:
             vertices: List of 8 floats [x1, y1, x2, y2, x3, y3, x4, y4]
             color: RGB tuple (r, g, b)
@@ -46,7 +51,7 @@ class CarShape:
         self._batch = batch
         self._color = color
         self._vertices_data = vertices
-        
+
         # Create two triangles to form a quad (pyglet 2.x doesn't have GL_QUADS directly)
         # Triangle 1: vertices 0, 1, 2
         # Triangle 2: vertices 0, 2, 3
@@ -59,24 +64,30 @@ class CarShape:
         for tri in self._triangles:
             tri.delete()
         self._triangles = []
-        
+
         v = self._vertices_data
         if len(v) >= 8:
             # Triangle 1: v0, v1, v2
             tri1 = pyglet.shapes.Triangle(
-                v[0], v[1],  # vertex 0
-                v[2], v[3],  # vertex 1
-                v[4], v[5],  # vertex 2
+                v[0],
+                v[1],  # vertex 0
+                v[2],
+                v[3],  # vertex 1
+                v[4],
+                v[5],  # vertex 2
                 color=self._color,
-                batch=self._batch
+                batch=self._batch,
             )
             # Triangle 2: v0, v2, v3
             tri2 = pyglet.shapes.Triangle(
-                v[0], v[1],  # vertex 0
-                v[4], v[5],  # vertex 2
-                v[6], v[7],  # vertex 3
+                v[0],
+                v[1],  # vertex 0
+                v[4],
+                v[5],  # vertex 2
+                v[6],
+                v[7],  # vertex 3
                 color=self._color,
-                batch=self._batch
+                batch=self._batch,
             )
             self._triangles = [tri1, tri2]
 
@@ -134,7 +145,7 @@ class EnvRenderer(pyglet.window.Window):
 
         # current batch that keeps track of all graphics
         self.batch = pyglet.graphics.Batch()
-        
+
         # batch for UI elements that stay fixed in screen space
         self.ui_batch = pyglet.graphics.Batch()
 
@@ -216,12 +227,12 @@ class EnvRenderer(pyglet.window.Window):
         map_mask = map_img == 0.0
         map_mask_flat = map_mask.flatten()
         map_points = 50.0 * map_coords[:, map_mask_flat].T
-        
+
         # Clear old map point shapes
         for shape in self.map_point_shapes:
             shape.delete()
         self.map_point_shapes = []
-        
+
         # Create circle shapes for map points (pyglet 2.x compatible)
         # Using small circles to represent points
         point_color = (183, 193, 222)
@@ -231,10 +242,10 @@ class EnvRenderer(pyglet.window.Window):
                 y=map_points[i, 1],
                 radius=1.0,  # Small radius for point-like appearance
                 color=point_color,
-                batch=self.batch
+                batch=self.batch,
             )
             self.map_point_shapes.append(point)
-        
+
         self.map_points = map_points
 
     def on_resize(self, width: int, height: int) -> None:
@@ -262,11 +273,11 @@ class EnvRenderer(pyglet.window.Window):
         self.top = self.zoom_level * height / 2
         self.zoomed_width = self.zoom_level * width
         self.zoomed_height = self.zoom_level * height
-        
+
         # Update UI element positions
         self.score_label.x = width - 20
         self.score_label.y = height - 20
-        
+
         self.fps_display.label.x = 20
         self.fps_display.label.y = height - 20
 
@@ -378,15 +389,15 @@ class EnvRenderer(pyglet.window.Window):
         # Draw all batches
         with self.window_block():
             self.batch.draw()
-        
+
         # Set up screen space projection for UI elements
         self.projection = pyglet.math.Mat4.orthogonal_projection(
             0, self.width, 0, self.height, -1, 1
         )
-        
+
         # Draw UI batch
         self.ui_batch.draw()
-        
+
         # Draw UI elements (score label and fps) in screen space
         self.score_label.draw()
         self.fps_display.draw()
@@ -424,7 +435,7 @@ class EnvRenderer(pyglet.window.Window):
                     car = CarShape(
                         vertices=vertices,
                         color=(172, 97, 185),  # Ego car color
-                        batch=self.batch
+                        batch=self.batch,
                     )
                     self.cars.append(car)
                 else:
@@ -435,7 +446,7 @@ class EnvRenderer(pyglet.window.Window):
                     car = CarShape(
                         vertices=vertices,
                         color=(99, 52, 94),  # Other car color
-                        batch=self.batch
+                        batch=self.batch,
                     )
                     self.cars.append(car)
 
@@ -455,14 +466,14 @@ class EnvRenderer(pyglet.window.Window):
 
 class _ProjectionContext:
     """Context manager for temporarily setting window projection."""
-    
+
     def __init__(self, window: EnvRenderer):
         self.window = window
-    
+
     def __enter__(self):
         # Store old view and set new projection
         self.window.view = pyglet.math.Mat4()
         return self
-    
+
     def __exit__(self, *args):
         pass

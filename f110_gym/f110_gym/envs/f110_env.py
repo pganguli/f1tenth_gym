@@ -7,13 +7,13 @@ import pathlib
 import time
 from typing import Any
 
+import gymnasium as gym
+
 # others
 import numpy as np
 
 # gl
 import pyglet
-
-import gymnasium as gym
 from gymnasium import spaces
 
 # base classes
@@ -176,27 +176,58 @@ class F110Env(gym.Env):
         # Gymnasium requires action_space and observation_space
         # Action space: (num_agents, 2) - [steering, velocity] per agent
         self.action_space = spaces.Box(
-            low=np.array([[self.params["s_min"], self.params["v_min"]]] * self.num_agents, dtype=np.float64),
-            high=np.array([[self.params["s_max"], self.params["v_max"]]] * self.num_agents, dtype=np.float64),
+            low=np.array(
+                [[self.params["s_min"], self.params["v_min"]]] * self.num_agents,
+                dtype=np.float64,
+            ),
+            high=np.array(
+                [[self.params["s_max"], self.params["v_max"]]] * self.num_agents,
+                dtype=np.float64,
+            ),
             dtype=np.float64,
         )
 
         # Observation space: Dict space with various observations
         # scans shape depends on lidar config, using 1080 beams as default
         num_beams = 1080
-        self.observation_space = spaces.Dict({
-            "ego_idx": spaces.Discrete(self.num_agents),
-            "scans": spaces.Box(low=0.0, high=30.0, shape=(self.num_agents, num_beams), dtype=np.float64),
-            "poses_x": spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64),
-            "poses_y": spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64),
-            "poses_theta": spaces.Box(low=-np.pi, high=np.pi, shape=(self.num_agents,), dtype=np.float64),
-            "linear_vels_x": spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64),
-            "linear_vels_y": spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64),
-            "ang_vels_z": spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64),
-            "collisions": spaces.Box(low=0.0, high=1.0, shape=(self.num_agents,), dtype=np.float64),
-            "lap_times": spaces.Box(low=0.0, high=np.inf, shape=(self.num_agents,), dtype=np.float64),
-            "lap_counts": spaces.Box(low=0.0, high=np.inf, shape=(self.num_agents,), dtype=np.float64),
-        })
+        self.observation_space = spaces.Dict(
+            {
+                "ego_idx": spaces.Discrete(self.num_agents),
+                "scans": spaces.Box(
+                    low=0.0,
+                    high=30.0,
+                    shape=(self.num_agents, num_beams),
+                    dtype=np.float64,
+                ),
+                "poses_x": spaces.Box(
+                    low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64
+                ),
+                "poses_y": spaces.Box(
+                    low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64
+                ),
+                "poses_theta": spaces.Box(
+                    low=-np.pi, high=np.pi, shape=(self.num_agents,), dtype=np.float64
+                ),
+                "linear_vels_x": spaces.Box(
+                    low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64
+                ),
+                "linear_vels_y": spaces.Box(
+                    low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64
+                ),
+                "ang_vels_z": spaces.Box(
+                    low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64
+                ),
+                "collisions": spaces.Box(
+                    low=0.0, high=1.0, shape=(self.num_agents,), dtype=np.float64
+                ),
+                "lap_times": spaces.Box(
+                    low=0.0, high=np.inf, shape=(self.num_agents,), dtype=np.float64
+                ),
+                "lap_counts": spaces.Box(
+                    low=0.0, high=np.inf, shape=(self.num_agents,), dtype=np.float64
+                ),
+            }
+        )
 
     def _check_done(self) -> tuple[bool, bool]:
         """
@@ -301,7 +332,7 @@ class F110Env(gym.Env):
         # check done
         done, toggle_list = self._check_done()
         info = {"checkpoint_done": toggle_list}
-        
+
         terminated = done
         truncated = False
 
@@ -325,16 +356,16 @@ class F110Env(gym.Env):
             info (dict): auxillary information dictionary
         """
         super().reset(seed=seed)
-        
+
         if options is not None:
             poses = options.get("poses")
         else:
             poses = None
 
         if poses is None:
-             # Default poses if not provided (example fallback)
+            # Default poses if not provided (example fallback)
             poses = np.zeros((self.num_agents, 3))
-            
+
         # reset counters and data members
         self.current_time = 0.0
         self.collisions = np.zeros((self.num_agents,), dtype=np.float64)

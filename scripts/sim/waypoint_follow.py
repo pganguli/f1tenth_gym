@@ -3,10 +3,9 @@
 import time
 from argparse import Namespace
 
+import gymnasium as gym
 import numpy as np
 from f110_gym.envs.base_classes import Integrator
-
-import gymnasium as gym
 from f110_planning.tracking import PurePursuitPlanner
 from f110_planning.utils import load_waypoints
 
@@ -36,7 +35,13 @@ def main():
         render_fps=60,
     )
 
-    from f110_planning.render_callbacks import camera_tracking, render_lidar, create_waypoint_renderer, render_side_distances
+    from f110_planning.render_callbacks import (
+        camera_tracking,
+        create_waypoint_renderer,
+        render_lidar,
+        render_side_distances,
+    )
+
     # Add callbacks
     env.unwrapped.add_render_callback(camera_tracking)
     env.unwrapped.add_render_callback(render_lidar)
@@ -57,7 +62,9 @@ def main():
     while not done:
         action = planner.plan(obs)
         speed, steer = action.speed, action.steer
-        obs, step_reward, terminated, truncated, info = env.step(np.array([[steer, speed]]))
+        obs, step_reward, terminated, truncated, info = env.step(
+            np.array([[steer, speed]])
+        )
         done = terminated or truncated
         laptime += step_reward
         env.render()

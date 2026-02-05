@@ -1,8 +1,10 @@
-import numpy as np
 from typing import Any
+
+import numpy as np
+
 from .collision_models import collision_multiple, get_vertices
-from .race_car import RaceCar
 from .integrator import Integrator
+from .race_car import RaceCar
 
 
 class Simulator(object):
@@ -177,12 +179,22 @@ class Simulator(object):
         observations = {
             "ego_idx": self.ego_idx,
             "scans": np.array(agent_scans, dtype=np.float64),
-            "poses_x": np.array([agent.state[0] for agent in self.agents], dtype=np.float64),
-            "poses_y": np.array([agent.state[1] for agent in self.agents], dtype=np.float64),
-            "poses_theta": np.array([agent.state[4] for agent in self.agents], dtype=np.float64),
-            "linear_vels_x": np.array([agent.state[3] for agent in self.agents], dtype=np.float64),
+            "poses_x": np.array(
+                [agent.state[0] for agent in self.agents], dtype=np.float64
+            ),
+            "poses_y": np.array(
+                [agent.state[1] for agent in self.agents], dtype=np.float64
+            ),
+            "poses_theta": np.array(
+                [agent.state[4] for agent in self.agents], dtype=np.float64
+            ),
+            "linear_vels_x": np.array(
+                [agent.state[3] for agent in self.agents], dtype=np.float64
+            ),
             "linear_vels_y": np.zeros(self.num_agents, dtype=np.float64),
-            "ang_vels_z": np.array([agent.state[5] for agent in self.agents], dtype=np.float64),
+            "ang_vels_z": np.array(
+                [agent.state[5] for agent in self.agents], dtype=np.float64
+            ),
             "collisions": self.collisions.astype(np.float64),
         }
 

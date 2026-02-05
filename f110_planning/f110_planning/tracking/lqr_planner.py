@@ -51,7 +51,7 @@ class LQRPlanner(BasePlanner):
         self.iterations = iterations
         self.eps = eps
 
-    def calc_control_points(self, vehicle_state: np.ndarray, waypoints: np.ndarray) -> Tuple[float, float, float, float, float]:
+    def calc_control_points(self, vehicle_state: np.ndarray, waypoints: np.ndarray) -> tuple[float, float, float, float, float]:
         """
         Calculate the heading and cross-track errors and target velocity and curvature
         Args:
