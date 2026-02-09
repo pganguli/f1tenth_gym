@@ -31,12 +31,13 @@ def main():
         num_agents=1,
         timestep=0.01,
         integrator=Integrator.RK4,
-        render_mode="human_fast",
+        render_mode="human",
         render_fps=60,
     )
 
     from f110_planning.render_callbacks import (
         camera_tracking,
+        create_trace_renderer,
         create_waypoint_renderer,
         render_lidar,
         render_side_distances,
@@ -46,6 +47,7 @@ def main():
     env.unwrapped.add_render_callback(camera_tracking)
     env.unwrapped.add_render_callback(render_lidar)
     env.unwrapped.add_render_callback(render_side_distances)
+    env.unwrapped.add_render_callback(create_trace_renderer())
     if waypoints.size > 0:
         render_waypoints = create_waypoint_renderer(waypoints)
         env.unwrapped.add_render_callback(render_waypoints)
