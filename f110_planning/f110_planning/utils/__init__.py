@@ -3,7 +3,7 @@ Utility functions for motion planners
 """
 
 from .geometry_utils import get_rotation_matrix, pi_2_pi, quat_2_rpy
-from .lidar_utils import get_side_distances
+from .lidar_utils import get_side_distances, get_heading_error
 from .lqr_utils import solve_lqr, update_matrix
 from .pure_pursuit_utils import get_actuation, intersect_point, nearest_point
 from .reactive_utils import circularOffset, getPoint, index2Angle, polar2Rect
@@ -23,5 +23,6 @@ __all__ = [
     "circularOffset",
     "getPoint",
     "get_side_distances",
+    "get_heading_error",
     "load_waypoints",
 ]

@@ -2,7 +2,7 @@ import numpy as np
 import pyglet
 from f110_gym.envs.rendering import EnvRenderer
 
-from f110_planning.utils import get_side_distances
+from f110_planning.utils import get_heading_error, get_side_distances
 
 
 def render_lidar(env_renderer: EnvRenderer) -> None:
@@ -109,3 +109,51 @@ def render_side_distances(env_renderer: EnvRenderer) -> None:
     e.side_dist_labels["left"].y = 20
     e.side_dist_labels["right"].x = e.width - 20
     e.side_dist_labels["right"].y = 50
+
+
+def create_heading_error_renderer(waypoints: np.ndarray, agent_idx: int = 0):
+    """
+    Factory to create a heading error rendering callback.
+
+    Args:
+        waypoints: Array of waypoints [N, 2] or [N, 3+] with x, y coordinates
+        agent_idx: Index of the agent to display heading error for
+    """
+
+    def render_heading_error(env_renderer: EnvRenderer) -> None:
+        e = env_renderer
+        if e.poses is None or e.poses.shape[0] <= agent_idx:
+            return
+
+        # Get current car position and orientation
+        car_position = np.array([e.poses[agent_idx, 0], e.poses[agent_idx, 1]])
+        car_theta = e.poses[agent_idx, 2]
+
+        # Calculate heading error
+        heading_error = get_heading_error(waypoints, car_position, car_theta)
+
+        # Create label if it doesn't exist
+        if not hasattr(e, "heading_error_label"):
+            e.heading_error_label = pyglet.text.Label(
+                "",
+                font_size=16,
+                x=e.width - 20,
+                y=80,  # Position above the wall distance labels
+                anchor_x="right",
+                color=(
+                    255,
+                    255,
+                    0,
+                    255,
+                ),  # Yellow color to distinguish from wall distances
+                batch=e.ui_batch,
+            )
+
+        # Update label text and position
+        e.heading_error_label.text = (
+            f"Heading Error: {heading_error: .3f} rad ({np.degrees(heading_error): .1f}°)"
+        )
+        e.heading_error_label.x = e.width - 20
+        e.heading_error_label.y = 80
+
+    return render_heading_error
