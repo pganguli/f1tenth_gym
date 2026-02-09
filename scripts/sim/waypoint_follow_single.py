@@ -21,7 +21,9 @@ def main():
     )
 
     waypoints_orig = load_waypoints("data/maps/Example/Example_raceline.csv")
-    waypoints_noisy = load_waypoints("data/maps/Example/Example_raceline_noisy_normal_m0.0_sd0.05.csv")
+    waypoints_noisy = load_waypoints(
+        "data/maps/Example/Example_raceline_noisy_normal_m0.0_sd0.05.csv"
+    )
 
     planner = PurePursuitPlanner(waypoints=waypoints_noisy)
 
@@ -45,12 +47,16 @@ def main():
     )
 
     # Add callbacks
-    env.unwrapped.add_render_callback(camera_tracking)
-    env.unwrapped.add_render_callback(render_lidar)
-    env.unwrapped.add_render_callback(render_side_distances)
-    env.unwrapped.add_render_callback(create_trace_renderer())
+    # env.unwrapped.add_render_callback(camera_tracking)
+    # env.unwrapped.add_render_callback(render_lidar)
+    # env.unwrapped.add_render_callback(render_side_distances)
+    env.unwrapped.add_render_callback(
+        create_trace_renderer(color=(255, 255, 0), max_points=10000)
+    )
     if waypoints_orig.size > 0:
-        render_waypoints = create_waypoint_renderer(waypoints_orig)
+        render_waypoints = create_waypoint_renderer(
+            waypoints_orig, color=(255, 255, 255, 64)
+        ) # Transparent White
         env.unwrapped.add_render_callback(render_waypoints)
 
     obs, info = env.reset(
@@ -63,13 +69,13 @@ def main():
 
     done = False
     while not done:
-        action = planner.plan(obs)
+        action = planner.plan(obs, ego_idx=0)
         speed, steer = action.speed, action.steer
         obs, step_reward, terminated, truncated, info = env.step(
             np.array([[steer, speed]])
         )
         done = terminated or truncated
-        laptime += step_reward
+        laptime += float(step_reward)
         env.render()
 
     print("Sim elapsed time:", laptime, "Real elapsed time:", time.time() - start)

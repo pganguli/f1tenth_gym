@@ -19,7 +19,7 @@ class FlippyPlanner(BasePlanner):
         self.speed = speed
         self.counter = 0
 
-    def plan(self, obs: dict[str, Any]) -> Action:
+    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
         self.counter += 1
         if self.counter % self.flip_every == 0:
             self.counter = 0

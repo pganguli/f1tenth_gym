@@ -28,8 +28,8 @@ class LongestReachablePathPlanner(BasePlanner):
         self.car_width = car_width
         self.adjustment_step = adjustment_step
 
-    def plan(self, obs: dict[str, Any]) -> Action:
-        scan_data = obs["scans"][0]
+    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
+        scan_data = obs["scans"][ego_idx]
         octantN = len(scan_data) // 6
 
         frontIndexStart = 1 * octantN
@@ -54,7 +54,7 @@ class LongestReachablePathPlanner(BasePlanner):
             distantPoint = LongestReachablePathPlanner.getCoordinates(
                 scan_data[maxI],
                 LongestReachablePathPlanner.index2Angle(
-                    maxI, len(scan_data) - 1, -np.pi / 4, 5 * np.pi / 4
+                    int(maxI), len(scan_data) - 1, -np.pi / 4, 5 * np.pi / 4
                 ),
             )
             p1 = distantPoint - carWidthOffset
@@ -95,7 +95,7 @@ class LongestReachablePathPlanner(BasePlanner):
 
         angle = (
             LongestReachablePathPlanner.index2Angle(
-                maxI, len(obs) - 1, -np.pi / 4, 5 * np.pi / 4
+                int(maxI), len(scan_data) - 1, -np.pi / 4, 5 * np.pi / 4
             )
             - np.pi / 2
         )

@@ -19,7 +19,7 @@ class RandomPlanner(BasePlanner):
         self.v_min = v_min
         self.v_max = v_max
 
-    def plan(self, obs: dict[str, Any]) -> Action:
+    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
         speed = random.uniform(self.v_min, self.v_max)
         steer = random.uniform(self.s_min, self.s_max)
         return Action(steer=steer, speed=speed)

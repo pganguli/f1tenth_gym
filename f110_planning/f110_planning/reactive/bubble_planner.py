@@ -12,8 +12,8 @@ class BubblePlanner(BasePlanner):
 
     # Detect obstacles within the safety radius
     @staticmethod
-    def detect_obstacles(radius: float, obs: dict[str, Any]) -> list[tuple[float, float]]:
-        lidar_data = obs["scans"][0]
+    def detect_obstacles(radius: float, obs: dict[str, Any], ego_idx: int) -> list[tuple[float, float]]:
+        lidar_data = obs["scans"][ego_idx]
         obstacles = []
         for i, distance in enumerate(lidar_data):
             angle = index2Angle(i)
@@ -43,8 +43,8 @@ class BubblePlanner(BasePlanner):
             avoidance_direction -= 2 * np.pi  # convert direction to range [-pi, pi]
         return avoidance_direction
 
-    def plan(self, obs: dict[str, Any]) -> Action:
-        obstacles = BubblePlanner.detect_obstacles(self.safety_radius, obs)
+    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
+        obstacles = BubblePlanner.detect_obstacles(self.safety_radius, obs, ego_idx)
         # If no obstacles, keep moving forward
         if not obstacles:
             Action(steer=0.0, speed=1.0)

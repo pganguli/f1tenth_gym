@@ -28,9 +28,9 @@ class DisparityExtenderPlanner(BasePlanner):
         self.lidar_distances: list[float] = []
         self.masked_disparities: np.ndarray
         self.possible_disparity_indices = None
-        self.samples_per_degree = 0
-        self.angle = 0
-        self.velocity = 0
+        self.samples_per_degree: float = 0.0
+        self.angle: float = 0.0
+        self.velocity: float = 0.0
 
     def angle_from_index(self, i: int) -> float:
         """Returns the angle, in degrees, corresponding to index i in the
@@ -244,7 +244,7 @@ class DisparityExtenderPlanner(BasePlanner):
         speed_range = speed_high - speed_low
         return speed_low + (speed_range * ratio)
 
-    def plan(self, obs: dict[str, Any]) -> Action:
-        self.lidar_distances = obs["scans"][0]
+    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
+        self.lidar_distances = obs["scans"][ego_idx]
         self.lidar_callback(self.lidar_distances)
         return Action(steer=self.angle, speed=self.velocity)

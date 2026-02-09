@@ -5,8 +5,7 @@ import gymnasium as gym
 import numpy as np
 from f110_gym.envs.base_classes import Integrator
 from f110_planning.tracking import PurePursuitPlanner
-from f110_planning.utils import load_waypoints
-from f110_planning.utils import get_side_distances
+from f110_planning.utils import load_waypoints, get_side_distances, get_heading_error
 
 
 import numpy as np
@@ -48,7 +47,7 @@ def main():
 
     header = (
         [f"lidar_{i}" for i in range(NUM_LIDAR_POINTS)]
-        + ["left_wall_dist", "right_wall_dist", "yaw"]
+        + ["left_wall_dist", "right_wall_dist", "heading_error"]
     )
 
     with open(CSV_PATH, "w", newline="") as f:
@@ -58,7 +57,7 @@ def main():
         step = 0
         done = False
         while step < MAX_STEPS and not done:
-            action = planner.plan(obs)
+            action = planner.plan(obs, ego_idx=0)
             speed, steer = action.speed, action.steer
             obs, step_reward, terminated, truncated, info = env.step(
                 np.array([[steer, speed]])
@@ -66,7 +65,9 @@ def main():
 
             scan = obs["scans"][0]
             left_dist, right_dist = get_side_distances(scan)
-            row = list(scan) + [left_dist, right_dist]
+            car_position = np.array([obs["poses_x"][0], obs["poses_y"][0]])
+            heading_error = get_heading_error(waypoints, car_position, obs["poses_theta"][0])
+            row = list(scan) + [left_dist, right_dist, heading_error]
             writer.writerow(row)
             done = terminated or truncated
             laptime += step_reward

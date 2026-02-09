@@ -97,21 +97,16 @@ class StanleyPlanner(BasePlanner):
 
         return delta, goal_veloctiy
 
-    def plan(self, obs: dict[str, Any]) -> Action:
+    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
         """
         Plan function
 
         Args:
-            pose_x (float):
-            pose_y (float):
-            pose_theta (float):
-            velocity (float):
-            k_path (float, optional, default=5):
-            waypoints (numpy.ndarray [N x 4], optional, default=None):
+            obs (dict): dictionary of observations
+            ego_idx (int): index of the ego vehicle
 
         Returns:
-            steering_angle (float): desired steering angle
-            speed (float): desired speed
+            Action: steering_angle and speed
         """
         if self.waypoints is None:
             raise ValueError(
@@ -119,10 +114,10 @@ class StanleyPlanner(BasePlanner):
             )
         vehicle_state = np.array(
             [
-                obs["poses_x"][0],
-                obs["poses_y"][0],
-                obs["poses_theta"][0],
-                obs["linear_vels_x"][0],
+                obs["poses_x"][ego_idx],
+                obs["poses_y"][ego_idx],
+                obs["poses_theta"][ego_idx],
+                obs["linear_vels_x"][ego_idx],
             ]
         )
         steering_angle, speed = self.controller(

@@ -69,22 +69,18 @@ class PurePursuitPlanner(BasePlanner):
         else:
             return None
 
-    def plan(self, obs: dict[str, Any]) -> Action:
+    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
         """
         Planner plan function overload for Pure Pursuit, returns acutation based on current state
 
         Args:
-            pose_x (float): current vehicle x position
-            pose_y (float): current vehicle y position
-            pose_theta (float): current vehicle heading angle
-            lookahead_distance (float): lookahead distance to find next waypoint to track
-            waypoints (numpy.ndarray [N x 4], optional): list of dynamic waypoints to track, columns are [x, y, velocity, heading]
+            obs (dict): dictionary of observations
+            ego_idx (int): index of the ego vehicle
 
         Returns:
-            speed (float): commanded vehicle longitudinal velocity
-            steering_angle (float):  commanded vehicle steering angle
+            Action: commanded velocity and steering angle
         """
-        position = np.array([obs["poses_x"][0], obs["poses_y"][0]])
+        position = np.array([obs["poses_x"][ego_idx], obs["poses_y"][ego_idx]])
         lookahead_point = self._get_current_waypoint(self.lookahead_distance, position)
 
         if lookahead_point is None:
@@ -92,7 +88,7 @@ class PurePursuitPlanner(BasePlanner):
             return Action(steer=0.0, speed=0.0)
 
         speed, steering_angle = get_actuation(
-            obs["poses_theta"][0],
+            obs["poses_theta"][ego_idx],
             lookahead_point,
             position,
             self.lookahead_distance,

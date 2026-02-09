@@ -41,7 +41,7 @@ class LQRPlanner(BasePlanner):
         self.wheelbase = wheelbase
         self.waypoints = waypoints
         self.vehicle_control_e_cog = 0  # e_cg: lateral error of CoG to ref trajectory
-        self.vehicle_control_theta_e = 0  # theta_e: yaw error to ref trajectory
+        self.vehicle_control_theta_e = 0.0  # theta_e: yaw error to ref trajectory
         self.timestep = timestep
         self.matrix_q_1 = matrix_q_1
         self.matrix_q_2 = matrix_q_2
@@ -164,6 +164,7 @@ class LQRPlanner(BasePlanner):
     def plan(
         self,
         obs: dict[str, Any],
+        ego_idx: int,
     ) -> Action:
         """
         Compute lateral control command.
@@ -180,10 +181,10 @@ class LQRPlanner(BasePlanner):
         # Define a numpy array that includes the current vehicle state: x,y, theta, veloctiy
         vehicle_state = np.array(
             [
-                obs["poses_x"][0],
-                obs["poses_y"][0],
-                obs["poses_theta"][0],
-                obs["linear_vels_x"][0],
+                obs["poses_x"][ego_idx],
+                obs["poses_y"][ego_idx],
+                obs["poses_theta"][ego_idx],
+                obs["linear_vels_x"][ego_idx],
             ]
         )
 
