@@ -20,9 +20,10 @@ def main():
         stheta=1.37079632679,
     )
 
-    waypoints = load_waypoints("data/maps/Example/Example_raceline.csv")
+    waypoints_orig = load_waypoints("data/maps/Example/Example_raceline.csv")
+    waypoints_noisy = load_waypoints("data/maps/Example/Example_raceline_noisy_normal_m0.0_sd0.05.csv")
 
-    planner = PurePursuitPlanner(waypoints=waypoints)
+    planner = PurePursuitPlanner(waypoints=waypoints_noisy)
 
     env = gym.make(
         "f110_gym:f110-v0",
@@ -48,8 +49,8 @@ def main():
     env.unwrapped.add_render_callback(render_lidar)
     env.unwrapped.add_render_callback(render_side_distances)
     env.unwrapped.add_render_callback(create_trace_renderer())
-    if waypoints.size > 0:
-        render_waypoints = create_waypoint_renderer(waypoints)
+    if waypoints_orig.size > 0:
+        render_waypoints = create_waypoint_renderer(waypoints_orig)
         env.unwrapped.add_render_callback(render_waypoints)
 
     obs, info = env.reset(
