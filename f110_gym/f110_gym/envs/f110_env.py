@@ -83,7 +83,10 @@ class F110Env(gym.Env):
         self.seed = kwargs.get("seed", 12345)
         self.render_mode = kwargs.get("render_mode", "human")
         self.render_fps = kwargs.get("render_fps", 200)
-        self.map_name = kwargs.get("map", "vegas")
+        self.map_name = kwargs.get("map")
+        
+        if self.map_name is None:
+            raise ValueError("Map must be specified. Please provide 'map' parameter to gym.make().")
 
         # different default maps
         current_dir = pathlib.Path(__file__).parent.absolute()
