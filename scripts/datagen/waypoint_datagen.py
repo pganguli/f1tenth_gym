@@ -12,7 +12,6 @@ import numpy as np
 import csv
 
 
-
 MAX_STEPS = 500
 NUM_LIDAR_POINTS = 1080
 CSV_PATH = "lidar_wall_data.csv"

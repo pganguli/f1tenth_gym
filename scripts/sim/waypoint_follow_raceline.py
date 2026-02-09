@@ -11,7 +11,6 @@ from f110_planning.utils import load_waypoints
 
 
 def main():
-    # Configuration for Example map
     conf = Namespace(
         map_path="data/maps/Example/Example",
         map_ext=".png",
@@ -22,7 +21,6 @@ def main():
 
     waypoints_orig = load_waypoints("data/maps/Example/Example_raceline.csv")
 
-    # Use baseline raceline waypoints (not noisy ones)
     planner = PurePursuitPlanner(waypoints=waypoints_orig)
 
     env = gym.make(
@@ -32,7 +30,7 @@ def main():
         num_agents=1,
         timestep=0.01,
         integrator=Integrator.RK4,
-        render_mode="human",
+        render_mode="human_fast",
         render_fps=60,
         max_laps=None,  # Run forever, don't terminate on lap completion
     )
@@ -46,7 +44,6 @@ def main():
         create_heading_error_renderer,
     )
 
-    # Add all render callbacks (enable all previously commented ones)
     env.unwrapped.add_render_callback(camera_tracking)
     env.unwrapped.add_render_callback(render_lidar)
     env.unwrapped.add_render_callback(render_side_distances)
@@ -54,14 +51,13 @@ def main():
         create_trace_renderer(color=(255, 255, 0), max_points=10000)
     )
     
-    # Add heading error renderer
     heading_error_renderer = create_heading_error_renderer(waypoints_orig, agent_idx=0)
     env.unwrapped.add_render_callback(heading_error_renderer)
     
     if waypoints_orig.size > 0:
         render_waypoints = create_waypoint_renderer(
             waypoints_orig, color=(255, 255, 255, 64)
-        )  # Transparent White
+        )
         env.unwrapped.add_render_callback(render_waypoints)
 
     obs, info = env.reset(

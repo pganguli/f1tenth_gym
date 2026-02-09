@@ -11,7 +11,6 @@ from f110_planning.utils import load_waypoints
 
 
 def main():
-    # Configuration for Example map
     conf = Namespace(
         map_path="data/maps/Example/Example",
         map_ext=".png",
@@ -46,7 +45,6 @@ def main():
         render_side_distances,
     )
 
-    # Add callbacks
     # env.unwrapped.add_render_callback(camera_tracking)
     # env.unwrapped.add_render_callback(render_lidar)
     # env.unwrapped.add_render_callback(render_side_distances)
@@ -56,7 +54,7 @@ def main():
     if waypoints_orig.size > 0:
         render_waypoints = create_waypoint_renderer(
             waypoints_orig, color=(255, 255, 255, 64)
-        ) # Transparent White
+        )
         env.unwrapped.add_render_callback(render_waypoints)
 
     obs, info = env.reset(
