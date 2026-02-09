@@ -119,6 +119,9 @@ class F110Env(gym.Env):
         # simulation parameters
         self.num_agents = kwargs.get("num_agents", 2)
         self.timestep = kwargs.get("timestep", 0.01)
+        
+        # lap completion parameters
+        self.max_laps = kwargs.get("max_laps", 2)  # None to disable lap-based termination
 
         # default ego index
         self.ego_idx = kwargs.get("ego_idx", 0)
@@ -269,9 +272,19 @@ class F110Env(gym.Env):
             if self.toggle_list[i] < 4:
                 self.lap_times[i] = self.current_time
 
-        done = (self.collisions[self.ego_idx]) or np.all(self.toggle_list >= 4)
+        # Check for collision-based termination
+        collision_done = bool(self.collisions[self.ego_idx])
+        
+        # Check for lap-based termination only if max_laps is set
+        if self.max_laps is None:
+            lap_done = False
+        else:
+            required_toggles = self.max_laps * 2
+            lap_done = bool(np.all(self.toggle_list >= required_toggles))
+        
+        done = collision_done or lap_done
 
-        return bool(done), bool(np.all(self.toggle_list >= 4))
+        return bool(done), lap_done
 
     def _update_state(self, obs_dict: dict[str, Any]) -> None:
         """
