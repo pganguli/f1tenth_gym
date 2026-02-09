@@ -9,7 +9,7 @@ class Action(NamedTuple):
 
 class BasePlanner(ABC):
     @abstractmethod
-    def plan(self, obs: dict[str, list[Any]]) -> Action: ...
+    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action: ...
 
 
 # Import submodules AFTER defining Action and BasePlanner to avoid circular imports

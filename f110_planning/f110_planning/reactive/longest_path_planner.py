@@ -8,8 +8,8 @@ class LongestPathPlanner(BasePlanner):
     def __init__(self, max_speed: float = 2.0):
         self.max_speed = max_speed
 
-    def plan(self, obs: dict[str, Any]) -> Action:
-        scan_data = obs["scans"][0]
+    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
+        scan_data = obs["scans"][ego_idx]
         quadrantN = len(scan_data) // 4
 
         frontIndexStart = quadrantN

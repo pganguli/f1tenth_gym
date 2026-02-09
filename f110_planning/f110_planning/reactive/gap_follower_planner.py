@@ -89,9 +89,9 @@ class GapFollowerPlanner(BasePlanner):
         steering_angle = lidar_angle / 2
         return steering_angle
 
-    def plan(self, obs: dict[str, Any]) -> Action:
+    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
         """Process each LiDAR scan as per the Follow Gap algorithm & publish an AckermannDriveStamped Message"""
-        proc_ranges = self.preprocess_lidar(obs["scans"][0])
+        proc_ranges = self.preprocess_lidar(obs["scans"][ego_idx])
         # Find closest point to LiDAR
         closest = proc_ranges.argmin()
 

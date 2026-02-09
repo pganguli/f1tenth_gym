@@ -4,28 +4,34 @@ from f110_gym.envs.rendering import EnvRenderer
 
 
 def create_trace_renderer(
-    max_points: int = 1000, color: tuple[int, int, int] = (184, 134, 11)
+    agent_idx: int = 0,
+    max_points: int = 5000,
+    color: tuple[int, int, int] = (255, 255, 0),
 ):
     """
     Factory to create a trajectory trace rendering callback.
 
     Args:
+        agent_idx: Index of the agent to trace.
         max_points: Maximum number of points to keep in the trace.
         color: RGB tuple for the trace points.
     """
     last_pos = None
     min_dist = 0.1  # Minimum distance between trace points in meters
+    shapes_attr = f"trace_shapes_{agent_idx}"
 
     def render_trace(env_renderer: EnvRenderer) -> None:
         nonlocal last_pos
         e = env_renderer
 
-        if not hasattr(e, "trace_shapes"):
-            e.trace_shapes = []
+        if not hasattr(e, shapes_attr):
+            setattr(e, shapes_attr, [])
+        
+        trace_shapes = getattr(e, shapes_attr)
 
-        # Get current ego position
-        if e.poses is not None:
-            ego_pos = e.poses[e.ego_idx, 0:2]
+        # Get current position for the specified agent
+        if e.poses is not None and e.poses.shape[0] > agent_idx:
+            ego_pos = e.poses[agent_idx, 0:2]
 
             # Add point if moved enough or first point
             if last_pos is None or np.linalg.norm(ego_pos - last_pos) > min_dist:
@@ -38,12 +44,12 @@ def create_trace_renderer(
                     color=color,
                     batch=e.batch,
                 )
-                e.trace_shapes.append(point)
+                trace_shapes.append(point)
                 last_pos = ego_pos.copy()
 
                 # Maintain max points
-                if len(e.trace_shapes) > max_points:
-                    old_point = e.trace_shapes.pop(0)
+                if len(trace_shapes) > max_points:
+                    old_point = trace_shapes.pop(0)
                     old_point.delete()
 
     return render_trace

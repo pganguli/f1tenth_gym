@@ -26,7 +26,7 @@ class ManualPlanner(BasePlanner):
         self.s_max = s_max
         self.v_max = v_max
 
-    def plan(self, obs: dict[str, Any]) -> Action:
+    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
         speed = 0.0
         steer = 0.0
         if self.keys[pyg_window.key.W]:
