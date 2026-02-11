@@ -37,11 +37,11 @@ def main():
 
     from f110_planning.render_callbacks import (
         camera_tracking,
+        create_heading_error_renderer,
         create_trace_renderer,
         create_waypoint_renderer,
         render_lidar,
         render_side_distances,
-        create_heading_error_renderer,
     )
 
     env.unwrapped.add_render_callback(camera_tracking)
@@ -50,10 +50,10 @@ def main():
     env.unwrapped.add_render_callback(
         create_trace_renderer(color=(255, 255, 0), max_points=10000)
     )
-    
+
     heading_error_renderer = create_heading_error_renderer(waypoints_orig, agent_idx=0)
     env.unwrapped.add_render_callback(heading_error_renderer)
-    
+
     if waypoints_orig.size > 0:
         render_waypoints = create_waypoint_renderer(
             waypoints_orig, color=(255, 255, 255, 64)

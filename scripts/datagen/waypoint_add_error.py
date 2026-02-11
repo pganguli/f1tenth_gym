@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
-import numpy as np
 import os
+
+import numpy as np
 
 
 def main():
@@ -38,7 +39,7 @@ def main():
         help="Comma-separated names of columns to add noise to (e.g., x_m,y_m,vx_mps).",
     )
     parser.add_argument(
-        "--seed", type=int, default=None, help="Random seed for reproducibility."
+        "--seed", type=int, default=42, help="Random seed for reproducibility."
     )
 
     args = parser.parse_args()
