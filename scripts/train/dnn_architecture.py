@@ -4,7 +4,6 @@ from tensorflow import keras
 from keras import models, layers, regularizers
 from keras.metrics import MeanSquaredError
 from keras.utils import register_keras_serializable
-import tqdm
 import os
 import json
 
