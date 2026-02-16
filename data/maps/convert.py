@@ -86,3 +86,4 @@ for file in all_files:
     print("New convention saved to: " + new_file)
 
 print("All files done.")
+
