@@ -3,9 +3,9 @@ Pure Pursuit waypoint tracker
 """
 
 import warnings
+from typing import Any, Optional
 
 import numpy as np
-from typing import Any, Optional
 
 from .. import Action, BasePlanner
 from ..utils import get_actuation, intersect_point, nearest_point
@@ -39,7 +39,9 @@ class PurePursuitPlanner(BasePlanner):
         self.max_speed = max_speed
         self.waypoints = waypoints
 
-    def _get_current_waypoint(self, lookahead_distance: float, position: np.ndarray) -> Optional[np.ndarray]:
+    def _get_current_waypoint(
+        self, lookahead_distance: float, position: np.ndarray
+    ) -> Optional[np.ndarray]:
         """
         Finds the current waypoint on the look ahead circle intersection
 

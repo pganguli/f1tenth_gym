@@ -1,7 +1,8 @@
+from typing import Any
+
 import numpy as np
 
 from .. import Action, BasePlanner
-from typing import Any
 
 
 class LongestPathPlanner(BasePlanner):

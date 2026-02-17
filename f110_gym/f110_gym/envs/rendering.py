@@ -5,6 +5,7 @@ Updated for pyglet 2.x compatibility
 """
 
 # opengl stuff
+from dataclasses import dataclass
 from typing import Any
 
 # other
@@ -93,6 +94,7 @@ class CarShape:
 
     @property
     def vertices(self) -> list[float]:
+        """Get the current vertices of the car shape."""
         return self._vertices_data
 
     @vertices.setter
@@ -101,14 +103,64 @@ class CarShape:
         self._update_triangles()
 
     def delete(self):
+        """Clean up and delete all sub-shapes associated with this car."""
         for tri in self._triangles:
             tri.delete()
         self._triangles = []
 
 
+@dataclass
+class CameraViewport:
+    """Ortho bounds for the camera."""
+
+    left: float
+    right: float
+    bottom: float
+    top: float
+
+
+@dataclass
+class RendererCamera:
+    """Camera and view state for the renderer."""
+
+    viewport: CameraViewport
+    zoom_level: float
+    zoomed_width: int
+    zoomed_height: int
+    x: float
+    y: float
+
+
+@dataclass
+class RendererMap:
+    """Map-related data and shapes."""
+
+    points: np.ndarray | None
+    shapes: list[pyglet.shapes.Circle]
+
+
+@dataclass
+class RendererSim:
+    """Simulation-related data (agent poses, scans, etc.)."""
+
+    poses: np.ndarray | None
+    ego_idx: int
+    cars: list[CarShape]
+    scans: list[np.ndarray] | None
+
+
+@dataclass
+class RendererUI:
+    """UI elements displayed over the simulation."""
+
+    score_label: pyglet.text.Label
+    fps_display: pyglet.window.FPSDisplay
+
+
 class EnvRenderer(pyglet.window.Window):
     """
-    A window class inherited from pyglet.window.Window, handles the camera/projection interaction, resizing window, and rendering the environment
+    A window class inherited from pyglet.window.Window, handles the camera/projection interaction,
+    resizing window, and rendering the environment
     """
 
     def __init__(self, width: int, height: int, *args: Any, **kwargs: Any):
@@ -130,43 +182,35 @@ class EnvRenderer(pyglet.window.Window):
         # Set background color
         pyglet.gl.glClearColor(9 / 255, 32 / 255, 87 / 255, 1.0)
 
-        # initialize camera values
-        self.left = -width / 2
-        self.right = width / 2
-        self.bottom = -height / 2
-        self.top = height / 2
-        self.zoom_level = 1.2
-        self.zoomed_width = width
-        self.zoomed_height = height
+        # pylint: disable=unreachable
+        self.camera = RendererCamera(
+            viewport=CameraViewport(
+                left=-width / 2,
+                right=width / 2,
+                bottom=-height / 2,
+                top=height / 2,
+            ),
+            zoom_level=1.2,
+            zoomed_width=width,
+            zoomed_height=height,
+            x=0.0,
+            y=0.0,
+        )
 
-        # Camera offset for panning
-        self.camera_x = 0.0
-        self.camera_y = 0.0
-
-        # current batch that keeps track of all graphics
+        # batches for graphics and UI
         self.batch = pyglet.graphics.Batch()
-
-        # batch for UI elements that stay fixed in screen space
         self.ui_batch = pyglet.graphics.Batch()
 
-        # current env map
-        self.map_points = None
-        self.map_point_shapes: list[pyglet.shapes.Circle] = []
+        # map and simulation state
+        self.map_state = RendererMap(points=None, shapes=[])
+        self.sim_state = RendererSim(poses=None, ego_idx=0, cars=[], scans=None)
 
-        # current env agent poses, (num_agents, 3), columns are (x, y, theta)
-        self.poses = None
+        # projection matrix
+        self.projection = pyglet.math.Mat4()
 
-        # current env agent vertices, (num_agents, 4, 2), 2nd and 3rd dimensions are the 4 corners in 2D
-        self.vertices = None
-
-        # car shapes
-        self.cars: list[CarShape] = []
-
-        # current score label
-        self.score_label = pyglet.text.Label(
-            "Lap Time: {laptime:.2f}, Ego Lap Count: {count:.0f}".format(
-                laptime=0.0, count=0.0
-            ),
+        # UI elements
+        score_label = pyglet.text.Label(
+            f"Lap Time: {0.0:.2f}, Ego Lap Count: {0.0:.0f}",
             font_size=24,
             x=width - 20,
             y=height - 20,
@@ -175,16 +219,19 @@ class EnvRenderer(pyglet.window.Window):
             color=(255, 255, 255, 255),
         )
 
-        self.fps_display = pyglet.window.FPSDisplay(self)
-        self.fps_display.label.x = 20
-        self.fps_display.label.y = height - 20
-        self.fps_display.label.anchor_y = "top"
-        self.fps_display.label.font_size = 16
-        self.fps_display.label.color = (200, 200, 200, 255)
+        fps_display = pyglet.window.FPSDisplay(self)
+        fps_display.label.x = 20
+        fps_display.label.y = height - 20
+        fps_display.label.anchor_y = "top"
+        fps_display.label.font_size = 16
+        fps_display.label.color = (200, 200, 200, 255)
+
+        self.ui = RendererUI(score_label=score_label, fps_display=fps_display)
 
     def update_map(self, map_path: str, map_ext: str) -> None:
         """
-        Update the map being drawn by the renderer. Converts image to a list of 3D points representing each obstacle pixel in the map.
+        Update the map being drawn by the renderer. Converts image to a list of 3D points
+        representing each obstacle pixel in the map.
 
         Args:
             map_path (str): absolute path to the map without extensions
@@ -195,43 +242,15 @@ class EnvRenderer(pyglet.window.Window):
         """
 
         # load map metadata
-        try:
-            with open(map_path + ".yaml", "r") as yaml_stream:
-                map_metadata = yaml.safe_load(yaml_stream)
-                map_resolution = map_metadata["resolution"]
-                origin = map_metadata["origin"]
-                origin_x = origin[0]
-                origin_y = origin[1]
-        except (yaml.YAMLError, IOError, KeyError) as ex:
-            print(f"Error loading map metadata: {ex}")
-            # Fallback or re-raise? Re-raising since map is essential for rendering.
-            raise
+        map_metadata = self._load_map_metadata(map_path)
 
-        # load map image
-        map_img = np.array(
-            Image.open(map_path + map_ext).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
-        ).astype(np.float64)
-        map_height = map_img.shape[0]
-        map_width = map_img.shape[1]
-
-        # convert map pixels to coordinates
-        range_x = np.arange(map_width)
-        range_y = np.arange(map_height)
-        map_x, map_y = np.meshgrid(range_x, range_y)
-        map_x = (map_x * map_resolution + origin_x).flatten()
-        map_y = (map_y * map_resolution + origin_y).flatten()
-        map_z = np.zeros(map_y.shape)
-        map_coords = np.vstack((map_x, map_y, map_z))
-
-        # mask and only leave the obstacle points
-        map_mask = map_img == 0.0
-        map_mask_flat = map_mask.flatten()
-        map_points = 50.0 * map_coords[:, map_mask_flat].T
+        # load and process map image to get obstacle points
+        map_points = self._get_map_points(map_path, map_ext, map_metadata)
 
         # Clear old map point shapes
-        for shape in self.map_point_shapes:
+        for shape in self.map_state.shapes:
             shape.delete()
-        self.map_point_shapes = []
+        self.map_state.shapes = []
 
         # Create circle shapes for map points (pyglet 2.x compatible)
         # Using small circles to represent points
@@ -244,13 +263,14 @@ class EnvRenderer(pyglet.window.Window):
                 color=point_color,
                 batch=self.batch,
             )
-            self.map_point_shapes.append(point)
+            self.map_state.shapes.append(point)
 
-        self.map_points = map_points
+        self.map_state.points = map_points
 
     def on_resize(self, width: int, height: int) -> None:
         """
-        Callback function on window resize, overrides inherited method, and updates camera values on top of the inherited on_resize() method.
+        Callback function on window resize, overrides inherited method, and updates camera values
+        on top of the inherited on_resize() method.
 
         Potential improvements on current behavior: zoom/pan resets on window resize.
 
@@ -267,22 +287,30 @@ class EnvRenderer(pyglet.window.Window):
 
         # update camera value
         (width, height) = self.get_size()
-        self.left = -self.zoom_level * width / 2
-        self.right = self.zoom_level * width / 2
-        self.bottom = -self.zoom_level * height / 2
-        self.top = self.zoom_level * height / 2
-        self.zoomed_width = self.zoom_level * width
-        self.zoomed_height = self.zoom_level * height
+        cam = self.camera
+        cam.viewport.left = -cam.zoom_level * width / 2
+        cam.viewport.right = cam.zoom_level * width / 2
+        cam.viewport.bottom = -cam.zoom_level * height / 2
+        cam.viewport.top = cam.zoom_level * height / 2
+        cam.zoomed_width = int(cam.zoom_level * width)
+        cam.zoomed_height = int(cam.zoom_level * height)
 
         # Update UI element positions
-        self.score_label.x = width - 20
-        self.score_label.y = height - 20
+        ui = self.ui
+        ui.score_label.x = width - 20
+        ui.score_label.y = height - 20
 
-        self.fps_display.label.x = 20
-        self.fps_display.label.y = height - 20
+        ui.fps_display.label.x = 20
+        ui.fps_display.label.y = height - 20
 
-    def on_mouse_drag(
-        self, x: int, y: int, dx: int, dy: int, buttons: int, modifiers: int
+    def on_mouse_drag(  # pylint: disable=too-many-arguments, too-many-positional-arguments
+        self,
+        x: int,  # pylint: disable=unused-argument
+        y: int,  # pylint: disable=unused-argument
+        dx: int,
+        dy: int,
+        buttons: int,  # pylint: disable=unused-argument
+        modifiers: int,  # pylint: disable=unused-argument
     ) -> None:
         """
         Callback function on mouse drag, overrides inherited method.
@@ -300,14 +328,21 @@ class EnvRenderer(pyglet.window.Window):
         """
 
         # pan camera
-        self.camera_x += dx * self.zoom_level
-        self.camera_y += dy * self.zoom_level
-        self.left -= dx * self.zoom_level
-        self.right -= dx * self.zoom_level
-        self.bottom -= dy * self.zoom_level
-        self.top -= dy * self.zoom_level
+        cam = self.camera
+        cam.x += dx * cam.zoom_level
+        cam.y += dy * cam.zoom_level
+        cam.viewport.left -= dx * cam.zoom_level
+        cam.viewport.right -= dx * cam.zoom_level
+        cam.viewport.bottom -= dy * cam.zoom_level
+        cam.viewport.top -= dy * cam.zoom_level
 
-    def on_mouse_scroll(self, x: int, y: int, dx: float, dy: float) -> None:
+    def on_mouse_scroll(
+        self,
+        x: int,
+        y: int,
+        scroll_x: float,  # pylint: disable=unused-argument
+        scroll_y: float,
+    ) -> None:
         """
         Callback function on mouse scroll, overrides inherited method.
 
@@ -322,31 +357,33 @@ class EnvRenderer(pyglet.window.Window):
         """
 
         # Get scale factor
-        f = ZOOM_IN_FACTOR if dy > 0 else ZOOM_OUT_FACTOR if dy < 0 else 1
+        f = ZOOM_IN_FACTOR if scroll_y > 0 else ZOOM_OUT_FACTOR if scroll_y < 0 else 1
 
         # If zoom_level is in the proper range
-        if 0.01 < self.zoom_level * f < 10:
-            self.zoom_level *= f
+        cam = self.camera
+        if 0.01 < cam.zoom_level * f < 10:
+            cam.zoom_level *= f
 
             (width, height) = self.get_size()
 
             mouse_x = x / width
             mouse_y = y / height
 
-            mouse_x_in_world = self.left + mouse_x * self.zoomed_width
-            mouse_y_in_world = self.bottom + mouse_y * self.zoomed_height
+            mouse_x_in_world = cam.viewport.left + mouse_x * cam.zoomed_width
+            mouse_y_in_world = cam.viewport.bottom + mouse_y * cam.zoomed_height
 
-            self.zoomed_width = int(self.zoomed_width * f)
-            self.zoomed_height = int(self.zoomed_height * f)
+            cam.zoomed_width = int(cam.zoomed_width * f)
+            cam.zoomed_height = int(cam.zoomed_height * f)
 
-            self.left = mouse_x_in_world - mouse_x * self.zoomed_width
-            self.right = mouse_x_in_world + (1 - mouse_x) * self.zoomed_width
-            self.bottom = mouse_y_in_world - mouse_y * self.zoomed_height
-            self.top = mouse_y_in_world + (1 - mouse_y) * self.zoomed_height
+            cam.viewport.left = mouse_x_in_world - mouse_x * cam.zoomed_width
+            cam.viewport.right = mouse_x_in_world + (1 - mouse_x) * cam.zoomed_width
+            cam.viewport.bottom = mouse_y_in_world - mouse_y * cam.zoomed_height
+            cam.viewport.top = mouse_y_in_world + (1 - mouse_y) * cam.zoomed_height
 
     def on_close(self) -> None:
         """
-        Callback function when the 'x' is clicked on the window, overrides inherited method. Also throws exception to end the python program when in a loop.
+        Callback function when the 'x' is clicked on the window, overrides inherited method.
+        Also throws exception to end the python program when in a loop.
 
         Args:
             None
@@ -355,15 +392,16 @@ class EnvRenderer(pyglet.window.Window):
             None
 
         Raises:
-            Exception: with a message that indicates the rendering window was closed
+            RuntimeError: with a message that indicates the rendering window was closed
         """
 
         super().on_close()
-        raise Exception("Rendering window was closed.")
+        raise RuntimeError("Rendering window was closed.")
 
     def on_draw(self) -> None:
         """
-        Function when the pyglet is drawing. The function draws the batch created that includes the map points, the agent polygons, and the information text, and the fps display.
+        Function when the pyglet is drawing. The function draws the batch created that includes
+        the map points, the agent polygons, the information text, and the fps display.
 
         Args:
             None
@@ -373,17 +411,23 @@ class EnvRenderer(pyglet.window.Window):
         """
 
         # if map and poses doesn't exist, raise exception
-        if self.map_points is None:
-            raise Exception("Map not set for renderer.")
-        if self.poses is None:
-            raise Exception("Agent poses not updated for renderer.")
+        if self.map_state.points is None:
+            raise RuntimeError("Map not set for renderer.")
+        if self.sim_state.poses is None:
+            raise RuntimeError("Agent poses not updated for renderer.")
 
         # Clear window
         self.clear()
 
         # Set up the projection for 2D rendering with camera
+        cam = self.camera
         self.projection = pyglet.math.Mat4.orthogonal_projection(
-            self.left, self.right, self.bottom, self.top, -1, 1
+            cam.viewport.left,
+            cam.viewport.right,
+            cam.viewport.bottom,
+            cam.viewport.top,
+            -1,
+            1,
         )
 
         # Draw all batches
@@ -399,8 +443,9 @@ class EnvRenderer(pyglet.window.Window):
         self.ui_batch.draw()
 
         # Draw UI elements (score label and fps) in screen space
-        self.score_label.draw()
-        self.fps_display.draw()
+        ui = self.ui
+        ui.score_label.draw()
+        ui.fps_display.draw()
 
     def window_block(self):
         """Context manager for setting window projection"""
@@ -408,7 +453,8 @@ class EnvRenderer(pyglet.window.Window):
 
     def update_obs(self, obs: dict[str, Any]) -> None:
         """
-        Updates the renderer with the latest observation from the gym environment, including the agent poses, and the information text.
+        Updates the renderer with the latest observation from the gym environment,
+        including the agent poses, and the information text.
 
         Args:
             obs (dict): observation dict from the gym env
@@ -417,51 +463,86 @@ class EnvRenderer(pyglet.window.Window):
             None
         """
 
-        self.scans = obs.get("scans")
-        self.ego_idx = obs["ego_idx"]
+        sim = self.sim_state
+        sim.scans = obs.get("scans")
+        sim.ego_idx = obs["ego_idx"]
         poses_x = obs["poses_x"]
         poses_y = obs["poses_y"]
         poses_theta = obs["poses_theta"]
 
         num_agents = len(poses_x)
-        if self.poses is None:
-            self.cars = []
+        if sim.poses is None:
+            sim.cars = []
             for i in range(num_agents):
-                if i == self.ego_idx:
+                if i == sim.ego_idx:
                     vertices_np = get_vertices(
                         np.array([0.0, 0.0, 0.0]), CAR_LENGTH, CAR_WIDTH
                     )
-                    vertices = list(vertices_np.flatten())
+                    vertices = vertices_np.flatten().tolist()
                     car = CarShape(
                         vertices=vertices,
                         color=(172, 97, 185),  # Ego car color
                         batch=self.batch,
                     )
-                    self.cars.append(car)
+                    sim.cars.append(car)
                 else:
                     vertices_np = get_vertices(
                         np.array([0.0, 0.0, 0.0]), CAR_LENGTH, CAR_WIDTH
                     )
-                    vertices = list(vertices_np.flatten())
+                    vertices = vertices_np.flatten().tolist()
                     car = CarShape(
                         vertices=vertices,
                         color=(99, 52, 94),  # Other car color
                         batch=self.batch,
                     )
-                    self.cars.append(car)
+                    sim.cars.append(car)
 
         poses = np.stack((poses_x, poses_y, poses_theta)).T
         for j in range(poses.shape[0]):
             vertices_np = 50.0 * get_vertices(poses[j, :], CAR_LENGTH, CAR_WIDTH)
-            vertices = list(vertices_np.flatten())
-            self.cars[j].vertices = vertices
-        self.poses = poses
+            vertices = vertices_np.flatten().tolist()
+            sim.cars[j].vertices = vertices
+        sim.poses = poses
 
-        self.score_label.text = (
-            "Lap Time: {laptime:.2f}, Ego Lap Count: {count:.0f}".format(
-                laptime=obs["lap_times"][0], count=obs["lap_counts"][obs["ego_idx"]]
-            )
+        ui = self.ui
+        ui.score_label.text = (
+            f"Lap Time: {obs['lap_times'][0]:.2f}, "
+            f"Ego Lap Count: {obs['lap_counts'][obs['ego_idx']]:.0f}"
         )
+
+    def _load_map_metadata(self, map_path: str) -> tuple[float, float, float]:
+        """Helper to load map metadata from yaml file."""
+        try:
+            with open(map_path + ".yaml", "r", encoding="utf-8") as yaml_stream:
+                metadata = yaml.safe_load(yaml_stream)
+                resolution = metadata["resolution"]
+                origin = metadata["origin"]
+                return resolution, origin[0], origin[1]
+        except (yaml.YAMLError, IOError, KeyError) as ex:
+            print(f"Error loading map metadata: {ex}")
+            raise
+
+    def _get_map_points(
+        self,
+        map_path: str,
+        map_ext: str,
+        metadata: tuple[float, float, float],
+    ) -> np.ndarray:
+        """Helper to process map image and return obstacle coordinates."""
+        map_img = np.array(
+            Image.open(map_path + map_ext).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+        ).astype(np.float64)
+        map_height, map_width = map_img.shape
+
+        # convert map pixels to coordinates
+        resolution, origin_x, origin_y = metadata
+        map_x, map_y = np.meshgrid(np.arange(map_width), np.arange(map_height))
+        map_x = (map_x * resolution + origin_x).flatten()
+        map_y = (map_y * resolution + origin_y).flatten()
+        map_coords = np.vstack((map_x, map_y, np.zeros(map_y.shape)))
+
+        # mask and only leave the obstacle points
+        return 50.0 * map_coords[:, (map_img == 0.0).flatten()].T
 
 
 class _ProjectionContext:

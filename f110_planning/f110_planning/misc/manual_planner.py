@@ -1,7 +1,8 @@
+from typing import Any
+
 from pyglet import display as pyg_display
 from pyglet import window as pyg_window
 
-from typing import Any
 from .. import Action, BasePlanner
 
 

@@ -26,7 +26,7 @@ def perpendicular(pt: np.ndarray) -> np.ndarray:
 
 
 @njit(cache=True)
-def tripleProduct(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray:
+def triple_product(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray:
     """
     Return triple product of three vectors
 
@@ -42,21 +42,7 @@ def tripleProduct(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray:
 
 
 @njit(cache=True)
-def avgPoint(vertices: np.ndarray) -> np.ndarray:
-    """
-    Return the average point of multiple vertices
-
-    Args:
-        vertices (np.ndarray, (n, 2)): the vertices we want to find avg on
-
-    Returns:
-        avg (np.ndarray, (2,)): average point of the vertices
-    """
-    return np.sum(vertices, axis=0) / vertices.shape[0]
-
-
-@njit(cache=True)
-def indexOfFurthestPoint(vertices: np.ndarray, d: np.ndarray) -> int:
+def idx_furthest_pt(vertices: np.ndarray, d: np.ndarray) -> int:
     """
     Return the index of the vertex furthest away along a direction in the list of vertices
 
@@ -82,8 +68,8 @@ def support(vertices1: np.ndarray, vertices2: np.ndarray, d: np.ndarray) -> np.n
     Returns:
         support (np.ndarray, (n, 2)): Minkowski sum
     """
-    i = indexOfFurthestPoint(vertices1, d)
-    j = indexOfFurthestPoint(vertices2, -d)
+    i = idx_furthest_pt(vertices1, d)
+    j = idx_furthest_pt(vertices2, -d)
     return vertices1[i] - vertices2[j]
 
 
@@ -99,11 +85,12 @@ def collision(vertices1: np.ndarray, vertices2: np.ndarray) -> bool:
     Returns:
         overlap (boolean): True if two bodies collide
     """
+    # pylint: disable=too-many-locals
     index = 0
     simplex = np.empty((3, 2))
 
-    position1 = avgPoint(vertices1)
-    position2 = avgPoint(vertices2)
+    position1 = np.mean(vertices1, axis=0)
+    position2 = np.mean(vertices2, axis=0)
 
     d = position1 - position2
 
@@ -131,7 +118,7 @@ def collision(vertices1: np.ndarray, vertices2: np.ndarray) -> bool:
         if index < 2:
             b = simplex[0, :]
             ab = b - a
-            d = tripleProduct(ab, ao, ab)
+            d = triple_product(ab, ao, ab)
             if np.linalg.norm(d) < 1e-10:
                 d = perpendicular(ab)
             continue
@@ -141,12 +128,12 @@ def collision(vertices1: np.ndarray, vertices2: np.ndarray) -> bool:
         ab = b - a
         ac = c - a
 
-        acperp = tripleProduct(ab, ac, ac)
+        acperp = triple_product(ab, ac, ac)
 
         if acperp.dot(ao) >= 0:
             d = acperp
         else:
-            abperp = tripleProduct(ac, ab, ab)
+            abperp = triple_product(ac, ab, ab)
             if abperp.dot(ao) < 0:
                 return True
             simplex[0, :] = simplex[1, :]
@@ -169,7 +156,8 @@ def collision_multiple(vertices: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
     Returns:
         collisions (np.ndarray (num_vertices, )): whether each body is in collision
-        collision_idx (np.ndarray (num_vertices, )): which index of other body is each index's body is in collision, -1 if not in collision
+        collision_idx (np.ndarray (num_vertices, )): which index of other body is in collision
+                                                     with each index's body, -1 if not in collision
     """
     collisions = np.zeros((vertices.shape[0],))
     collision_idx = -1 * np.ones((vertices.shape[0],))
@@ -190,11 +178,6 @@ def collision_multiple(vertices: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return collisions, collision_idx
 
 
-"""
-Utility functions for getting vertices by pose and shape
-"""
-
-
 @njit(cache=True)
 def get_trmtx(pose: np.ndarray) -> np.ndarray:
     """
@@ -211,6 +194,8 @@ def get_trmtx(pose: np.ndarray) -> np.ndarray:
     th = pose[2]
     cos = np.cos(th)
     sin = np.sin(th)
+
+    # pylint: disable=invalid-name
     H = np.array(
         [
             [cos, -sin, 0.0, x],
@@ -235,7 +220,7 @@ def get_vertices(pose: np.ndarray, length: float, width: float) -> np.ndarray:
     Returns:
         vertices (np.ndarray, (4, 2)): corner vertices of the vehicle body
     """
-    H = get_trmtx(pose)
+    H = get_trmtx(pose)  # pylint: disable=invalid-name
     rl = H.dot(np.asarray([[-length / 2], [width / 2], [0.0], [1.0]])).flatten()
     rr = H.dot(np.asarray([[-length / 2], [-width / 2], [0.0], [1.0]])).flatten()
     fl = H.dot(np.asarray([[length / 2], [width / 2], [0.0], [1.0]])).flatten()

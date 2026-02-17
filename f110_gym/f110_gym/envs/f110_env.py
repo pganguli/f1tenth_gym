@@ -3,7 +3,6 @@ Author: Hongrui Zheng
 """
 
 # gym imports
-import pathlib
 import time
 from typing import Any
 
@@ -18,6 +17,8 @@ from gymnasium import spaces
 
 # base classes
 from .base_classes import Integrator, Simulator
+from .rendering import EnvRenderer
+from .simulator_params import SimulatorParams
 
 pyglet.options["debug_gl"] = False
 
@@ -37,12 +38,27 @@ class F110Env(gym.Env):
     Args:
         kwargs:
             seed (int, default=12345): seed for random state and reproducibility
-
-            map (str, default='vegas'): name of the map used for the environment. Currently, available environments include: 'berlin', 'vegas', 'skirk'. You could use a string of the absolute path to the yaml file of your custom map.
-
-            map_ext (str, default='png'): image extension of the map image file. For example 'png', 'pgm'
-
-            params (dict, default={'mu': 1.0489, 'C_Sf':, 'C_Sr':, 'lf': 0.15875, 'lr': 0.17145, 'h': 0.074, 'm': 3.74, 'I': 0.04712, 's_min': -0.4189, 's_max': 0.4189, 'sv_min': -3.2, 'sv_max': 3.2, 'v_switch':7.319, 'a_max': 9.51, 'v_min':-5.0, 'v_max': 20.0, 'width': 0.31, 'length': 0.58}): dictionary of vehicle parameters.
+            map (str): absolute path to the yaml file of the map used for the environment
+            map_ext (str, default='png'): image extension of the map image file
+            params (dict, default={
+                'mu': 1.0489,
+                'C_Sf': 4.718,
+                'C_Sr': 5.4562,
+                'lf': 0.15875,
+                'lr': 0.17145,
+                'h': 0.074,
+                'm': 3.74,
+                'I': 0.04712,
+                's_min': -0.4189,
+                's_max': 0.4189,
+                'sv_min': -3.2,
+                'sv_max': 3.2,
+                'v_switch':7.319,
+                'a_max': 9.51,
+                'v_min':-5.0,
+                'v_max': 20.0,
+                'width': 0.31,
+                'length': 0.58}): dictionary of vehicle parameters.
             mu: surface friction coefficient
             C_Sf: Cornering stiffness coefficient, front
             C_Sr: Cornering stiffness coefficient, rear
@@ -55,21 +71,20 @@ class F110Env(gym.Env):
             s_max: Maximum steering angle constraint
             sv_min: Minimum steering velocity constraint
             sv_max: Maximum steering velocity constraint
-            v_switch: Switching velocity (velocity at which the acceleration is no longer able to create wheel spin)
+            v_switch: Switching velocity (velocity at which the acceleration
+                      is no longer able to create wheel spin)
             a_max: Maximum longitudinal acceleration
             v_min: Minimum longitudinal velocity
             v_max: Maximum longitudinal velocity
             width: width of the vehicle in meters
             length: length of the vehicle in meters
-
             num_agents (int, default=2): number of agents in the environment
-
             timestep (float, default=0.01): physics timestep
-
             ego_idx (int, default=0): ego's index in list of agents
-
             lidar_dist (float, default=0): vertical distance between LiDAR and backshaft
     """
+
+    # pylint: disable=too-many-instance-attributes
 
     metadata = {"render_modes": ["human", "human_fast"], "render_fps": 200}
 
@@ -83,19 +98,15 @@ class F110Env(gym.Env):
         self.seed = kwargs.get("seed", 12345)
         self.render_mode = kwargs.get("render_mode", "human")
         self.render_fps = kwargs.get("render_fps", 200)
-        self.map_name = kwargs.get("map")
-        
-        if self.map_name is None:
-            raise ValueError("Map must be specified. Please provide 'map' parameter to gym.make().")
 
-        # different default maps
-        current_dir = pathlib.Path(__file__).parent.absolute()
-        if self.map_name in ["berlin", "skirk", "levine", "vegas"]:
-            self.map_path = str(current_dir / "maps" / f"{self.map_name}.yaml")
-        else:
-            self.map_path = self.map_name + ".yaml"
-
-        self.map_ext = kwargs.get("map_ext", ".png")
+        map_name = kwargs.get("map")
+        if map_name is None:
+            raise ValueError(
+                "Map must be specified. Please provide 'map' parameter to gym.make()."
+            )
+        self.map_name = str(map_name)
+        self.map_path = self.map_name + ".yaml"
+        self.map_ext = str(kwargs.get("map_ext", ".png"))
 
         default_params = {
             "mu": 1.0489,
@@ -122,9 +133,11 @@ class F110Env(gym.Env):
         # simulation parameters
         self.num_agents = kwargs.get("num_agents", 2)
         self.timestep = kwargs.get("timestep", 0.01)
-        
+
         # lap completion parameters
-        self.max_laps = kwargs.get("max_laps", 2)  # None to disable lap-based termination
+        self.max_laps = kwargs.get(
+            "max_laps", 2
+        )  # None to disable lap-based termination
 
         # default ego index
         self.ego_idx = kwargs.get("ego_idx", 0)
@@ -143,8 +156,6 @@ class F110Env(gym.Env):
         self.poses_y = []
         self.poses_theta = []
         self.collisions = np.zeros((self.num_agents,), dtype=np.float64)
-        # TODO: collision_idx not used yet
-        # self.collision_idx = -1 * np.ones((self.num_agents, ))
 
         # loop completion
         self.near_start = True
@@ -166,14 +177,16 @@ class F110Env(gym.Env):
         self.start_rot = np.eye(2)
 
         # initiate stuff
-        self.sim = Simulator(
-            self.params,
-            self.num_agents,
-            self.seed,
+        sim_params = SimulatorParams(
+            vehicle_params=self.params,
+            num_agents=self.num_agents,
+            seed=self.seed,
             time_step=self.timestep,
+            ego_idx=self.ego_idx,
             integrator=self.integrator,
             lidar_dist=self.lidar_dist,
         )
+        self.sim = Simulator(sim_params)
         self.sim.set_map(self.map_path, self.map_ext)
 
         # stateful observations for rendering
@@ -247,8 +260,8 @@ class F110Env(gym.Env):
             toggle_list (np.ndarray): boolean mask of agents that have finished the lap
         """
 
-        # this is assuming 2 agents
-        # TODO: switch to maybe s-based
+        # pylint: disable=too-many-locals
+
         left_t = 2
         right_t = 2
 
@@ -277,14 +290,14 @@ class F110Env(gym.Env):
 
         # Check for collision-based termination
         collision_done = bool(self.collisions[self.ego_idx])
-        
+
         # Check for lap-based termination only if max_laps is set
         if self.max_laps is None:
             lap_done = False
         else:
             required_toggles = self.max_laps * 2
             lap_done = bool(np.all(self.toggle_list >= required_toggles))
-        
+
         done = collision_done or lap_done
 
         return bool(done), lap_done
@@ -457,18 +470,22 @@ class F110Env(gym.Env):
         Add extra drawing function to call during rendering.
 
         Args:
-            callback_func (function (EnvRenderer) -> None): custom function to called during render()
+            callback_func (function (EnvRenderer) -> None): custom function
+                                                            to call during render()
         """
 
         F110Env.render_callbacks.append(callback_func)
 
     def render(self) -> None:
         """
-        Renders the environment with pyglet. Use mouse scroll in the window to zoom in/out, use mouse click drag to pan. Shows the agents, the map, current fps (bottom left corner), and the race information near as text.
+        Renders the environment with pyglet. Use mouse scroll in the window to zoom in/out,
+        use mouse click drag to pan. Shows the agents, the map, current fps (bottom left corner),
+        and the race information near as text.
 
         Args:
             mode (str, default='human'): rendering mode, currently supports:
-                'human': slowed down rendering such that the env is rendered in a way that sim time elapsed is close to real time elapsed
+                'human': slowed down rendering such that the env is rendered in a way that sim time
+                         elapsed is close to real time elapsed
                 'human_fast': render as fast as possible
 
         Returns:
@@ -477,10 +494,11 @@ class F110Env(gym.Env):
 
         if F110Env.renderer is None:
             # first call, initialize everything
-            from f110_gym.envs.rendering import EnvRenderer
-
             F110Env.renderer = EnvRenderer(WINDOW_W, WINDOW_H)
             F110Env.renderer.update_map(self.map_name, self.map_ext)
+
+        if self.render_obs is None:
+            raise RuntimeError("Please call reset() before render().")
 
         F110Env.renderer.update_obs(self.render_obs)
 

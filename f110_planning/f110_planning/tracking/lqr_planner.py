@@ -3,8 +3,9 @@ LQR waypoint tracker
 Implementation inspired by https://github.com/AtsushiSakai/PythonRobotics/blob/master/PathTracking/lqr_steer_control/lqr_steer_control.py
 """
 
-import numpy as np
 from typing import Any
+
+import numpy as np
 
 from .. import Action, BasePlanner
 from ..utils import nearest_point, pi_2_pi, solve_lqr, update_matrix
@@ -51,7 +52,9 @@ class LQRPlanner(BasePlanner):
         self.iterations = iterations
         self.eps = eps
 
-    def calc_control_points(self, vehicle_state: np.ndarray, waypoints: np.ndarray) -> tuple[float, float, float, float, float]:
+    def calc_control_points(
+        self, vehicle_state: np.ndarray, waypoints: np.ndarray
+    ) -> tuple[float, float, float, float, float]:
         """
         Calculate the heading and cross-track errors and target velocity and curvature
         Args:
@@ -102,7 +105,14 @@ class LQRPlanner(BasePlanner):
         return theta_e, ef[0], theta_raceline, kappa_ref, goal_veloctiy
 
     def controller(
-        self, vehicle_state: np.ndarray, waypoints: np.ndarray, ts: float, matrix_q: list[float], matrix_r: list[float], max_iteration: int, eps: float
+        self,
+        vehicle_state: np.ndarray,
+        waypoints: np.ndarray,
+        ts: float,
+        matrix_q: list[float],
+        matrix_r: list[float],
+        max_iteration: int,
+        eps: float,
     ) -> tuple[float, float]:
         """
         Compute lateral control command.

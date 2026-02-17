@@ -2,13 +2,16 @@
 Pure Pursuit utilities
 """
 
+from typing import Optional
+
 import numpy as np
 from numba import njit
-from typing import Optional
 
 
 @njit(cache=True)
-def nearest_point(point: np.ndarray, trajectory: np.ndarray) -> tuple[np.ndarray, float, float, int]:
+def nearest_point(
+    point: np.ndarray, trajectory: np.ndarray
+) -> tuple[np.ndarray, float, float, int]:
     """
     Return the nearest point along the given piecewise linear trajectory.
 
@@ -45,7 +48,13 @@ def nearest_point(point: np.ndarray, trajectory: np.ndarray) -> tuple[np.ndarray
     )
 
 
-def intersect_point(point: np.ndarray, radius: float, trajectory: np.ndarray, t: float = 0.0, wrap: bool = False) -> tuple[Optional[np.ndarray], Optional[int], Optional[float]]:
+def intersect_point(
+    point: np.ndarray,
+    radius: float,
+    trajectory: np.ndarray,
+    t: float = 0.0,
+    wrap: bool = False,
+) -> tuple[Optional[np.ndarray], Optional[int], Optional[float]]:
     """
     starts at beginning of trajectory, and find the first point one radius away from the given point along the trajectory.
 

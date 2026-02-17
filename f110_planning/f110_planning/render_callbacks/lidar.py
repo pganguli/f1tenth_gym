@@ -150,9 +150,7 @@ def create_heading_error_renderer(waypoints: np.ndarray, agent_idx: int = 0):
             )
 
         # Update label text and position
-        e.heading_error_label.text = (
-            f"Heading Error: {heading_error: .3f} rad ({np.degrees(heading_error): .1f}°)"
-        )
+        e.heading_error_label.text = f"Heading Error: {heading_error: .3f} rad ({np.degrees(heading_error): .1f}°)"
         e.heading_error_label.x = e.width - 20
         e.heading_error_label.y = 80
 

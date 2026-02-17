@@ -1,6 +1,7 @@
+from typing import Any
+
 import numpy as np
 from simple_pid import PID
-from typing import Any
 
 from .. import Action, BasePlanner
 

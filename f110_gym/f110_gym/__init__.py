@@ -1,3 +1,7 @@
+"""
+This module registers the F1TENTH Gym environment.
+"""
+
 from gymnasium.envs.registration import register
 
 register(

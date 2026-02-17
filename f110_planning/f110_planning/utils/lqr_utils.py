@@ -7,7 +7,14 @@ from numba import njit
 
 
 @njit(cache=True)
-def solve_lqr(A: np.ndarray, B: np.ndarray, Q: np.ndarray, R: np.ndarray, tolerance: float, max_num_iteration: int) -> np.ndarray:
+def solve_lqr(
+    A: np.ndarray,
+    B: np.ndarray,
+    Q: np.ndarray,
+    R: np.ndarray,
+    tolerance: float,
+    max_num_iteration: int,
+) -> np.ndarray:
     """
     Iteratively calculating feedback matrix K
 
@@ -51,7 +58,9 @@ def solve_lqr(A: np.ndarray, B: np.ndarray, Q: np.ndarray, R: np.ndarray, tolera
 
 
 @njit(cache=True)
-def update_matrix(vehicle_state: np.ndarray, state_size: int, timestep: float, wheelbase: float) -> tuple[np.ndarray, np.ndarray]:
+def update_matrix(
+    vehicle_state: np.ndarray, state_size: int, timestep: float, wheelbase: float
+) -> tuple[np.ndarray, np.ndarray]:
     """
     calc A and b matrices of linearized, discrete system.
 

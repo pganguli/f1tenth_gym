@@ -26,7 +26,7 @@ def create_trace_renderer(
 
         if not hasattr(e, shapes_attr):
             setattr(e, shapes_attr, [])
-        
+
         trace_shapes = getattr(e, shapes_attr)
 
         # Get current position for the specified agent

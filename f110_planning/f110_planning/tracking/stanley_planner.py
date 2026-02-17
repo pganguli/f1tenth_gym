@@ -2,8 +2,9 @@
 Stanley waypoint tracker
 """
 
-import numpy as np
 from typing import Any
+
+import numpy as np
 
 from .. import Action, BasePlanner
 from ..utils import nearest_point, pi_2_pi
@@ -26,13 +27,18 @@ class StanleyPlanner(BasePlanner):
     """
 
     def __init__(
-        self, wheelbase: float = 0.33, waypoints: np.ndarray = np.array([]), k_path: float = 5.0
+        self,
+        wheelbase: float = 0.33,
+        waypoints: np.ndarray = np.array([]),
+        k_path: float = 5.0,
     ):
         self.wheelbase = wheelbase
         self.waypoints = waypoints
         self.k_path = k_path
 
-    def calc_theta_and_ef(self, vehicle_state: np.ndarray, waypoints: np.ndarray) -> tuple[float, float, int, float]:
+    def calc_theta_and_ef(
+        self, vehicle_state: np.ndarray, waypoints: np.ndarray
+    ) -> tuple[float, float, int, float]:
         """
         Calculate the heading and cross-track errors
         Args:
@@ -68,7 +74,9 @@ class StanleyPlanner(BasePlanner):
 
         return theta_e, ef, target_index, goal_veloctiy
 
-    def controller(self, vehicle_state: np.ndarray, waypoints: np.ndarray, k_path: float) -> tuple[float, float]:
+    def controller(
+        self, vehicle_state: np.ndarray, waypoints: np.ndarray, k_path: float
+    ) -> tuple[float, float]:
         """
         Front Wheel Feedback Controller to track the path
         Based on the heading error theta_e and the crosstrack error ef we calculate the steering angle

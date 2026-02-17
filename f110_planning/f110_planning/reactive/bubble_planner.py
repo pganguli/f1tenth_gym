@@ -1,5 +1,6 @@
-import numpy as np
 from typing import Any
+
+import numpy as np
 
 from .. import Action, BasePlanner
 from ..utils import index2Angle
@@ -12,7 +13,9 @@ class BubblePlanner(BasePlanner):
 
     # Detect obstacles within the safety radius
     @staticmethod
-    def detect_obstacles(radius: float, obs: dict[str, Any], ego_idx: int) -> list[tuple[float, float]]:
+    def detect_obstacles(
+        radius: float, obs: dict[str, Any], ego_idx: int
+    ) -> list[tuple[float, float]]:
         lidar_data = obs["scans"][ego_idx]
         obstacles = []
         for i, distance in enumerate(lidar_data):
@@ -23,7 +26,9 @@ class BubblePlanner(BasePlanner):
 
     # Find the closest obstacle from a list of obstacles
     @staticmethod
-    def find_closest_obstacle(obstacles: list[tuple[float, float]]) -> tuple[float, float]:
+    def find_closest_obstacle(
+        obstacles: list[tuple[float, float]],
+    ) -> tuple[float, float]:
         return min(obstacles, key=lambda v: v[1])
 
     # Calculate the direction of an obstacle relative to the car
