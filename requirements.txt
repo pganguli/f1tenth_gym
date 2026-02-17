@@ -13,7 +13,7 @@ grpcio==1.78.0
 gymnasium==1.2.3
 h5py==3.15.1
 idna==3.11
-keras==3.12.1
+keras==3.13.2
 libclang==18.1.1
 llvmlite==0.46.0
 Markdown==3.10.2
@@ -27,7 +27,7 @@ numpy==2.2.6
 opt_einsum==3.4.0
 optree==0.18.0
 packaging==26.0
-pillow==12.1.0
+pillow==12.1.1
 protobuf==6.33.5
 pyglet==2.1.13
 Pygments==2.19.2
