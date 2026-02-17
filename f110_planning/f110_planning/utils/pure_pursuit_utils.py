@@ -159,4 +159,5 @@ def get_actuation(
         return speed, 0.0
     radius = 1 / (2.0 * waypoint_y / lookahead_distance**2)
     steering_angle = np.arctan(wheelbase / radius)
+    speed = max(lookahead_point[2], 0.0) * (1.0 - np.abs(steering_angle) * 2.0 / np.pi)
     return speed, steering_angle

@@ -30,11 +30,13 @@ class PurePursuitPlanner(BasePlanner):
         self,
         wheelbase: float = 0.33,
         lookahead_distance: float = 0.8,
+        max_speed: float = 5.0,
         waypoints: np.ndarray = np.array([]),
     ):
         self.max_reacquire = 20.0
         self.wheelbase = wheelbase
         self.lookahead_distance = lookahead_distance
+        self.max_speed = max_speed
         self.waypoints = waypoints
 
     def _get_current_waypoint(self, lookahead_distance: float, position: np.ndarray) -> Optional[np.ndarray]:
@@ -86,6 +88,8 @@ class PurePursuitPlanner(BasePlanner):
         if lookahead_point is None:
             warnings.warn("Cannot find lookahead point, stopping...")
             return Action(steer=0.0, speed=0.0)
+
+        lookahead_point[2] = self.max_speed
 
         speed, steering_angle = get_actuation(
             obs["poses_theta"][ego_idx],
