@@ -100,12 +100,14 @@ class DNNWaypointPlanner(BasePlanner):
         phi_model_path: str,
         wall_model_path: str,
         data_path: str,
+        waypoints: np.ndarray,
         lookahead_distance: float = 1.0,
         max_speed: float = 5.0,
         wheelbase: float = 0.33,
         lateral_gain: float = 1.0,
         device: str = "cpu",
     ):
+        self.waypoints = waypoints
         self.lookahead_distance = lookahead_distance
         self.max_speed = max_speed
         self.wheelbase = wheelbase
@@ -221,7 +223,7 @@ class DNNWaypointPlanner(BasePlanner):
 def parse_args():
     parser = argparse.ArgumentParser(description="DNN Waypoint Follower Simulation")
     parser.add_argument(
-        "--map-path", default="data/maps/Example/Example", help="Map path"
+        "--map-path", default="data/maps/F1/Oschersleben/Oschersleben_map", help="Map path"
     )
     parser.add_argument("--map-ext", default=".png", help="Map extension")
     parser.add_argument(
@@ -251,18 +253,19 @@ def main():
     args = parse_args()
 
     # Config hardcoded matching original script for now
-    sx = 0.7
+    sx = 0.0
     sy = 0.0
     stheta = 1.37079632679
 
     # Load waypoints for rendering (still useful to see the track)
-    waypoints = load_waypoints("data/maps/Example/Example_raceline.csv")
+    waypoints = load_waypoints("data/maps/F1/Oschersleben/Oschersleben_centerline.tsv")
 
     # Initialize DNN Planner
     planner = DNNWaypointPlanner(
         phi_model_path=args.phi_model,
         wall_model_path=args.wall_model,
         data_path=args.data_path,
+        waypoints=waypoints,
         lookahead_distance=1.5,
         max_speed=5.0,
         lateral_gain=1.0,
@@ -299,9 +302,7 @@ def main():
     # Dynamic waypoint renderer
     # This visualizes where the planner *would* aim using ground truth
     # We might want to subclass this to visualize where DNN aims, but for now keep original
-    dynamic_waypoint_renderer = create_dynamic_waypoint_renderer(
-        waypoints, agent_idx=0, lookahead_distance=1.5, lateral_gain=1.0
-    )
+    dynamic_waypoint_renderer = create_dynamic_waypoint_renderer(planner, agent_idx=0)
     env.unwrapped.add_render_callback(dynamic_waypoint_renderer)
 
     obs, info = env.reset(options={"poses": np.array([[sx, sy, stheta]])})

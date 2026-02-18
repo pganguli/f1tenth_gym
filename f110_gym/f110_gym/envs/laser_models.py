@@ -96,12 +96,12 @@ def distance_transform(
 
 @njit(cache=True)
 def trace_ray(
-    x,
-    y,
-    theta_index,
-    scan_params,
-    map_params,
-):
+    x: float,
+    y: float,
+    theta_index: float,
+    scan_params: tuple,
+    map_params: tuple,
+) -> float:
     """
     Find the length of a specific ray at a specific scan angle theta
     Purely math calculation and loops, should be JITted.
@@ -149,10 +149,10 @@ def trace_ray(
 
 @njit(cache=True)
 def get_scan(
-    pose,
-    scan_params,
-    map_params,
-):
+    pose: np.ndarray,
+    scan_params: tuple,
+    map_params: tuple,
+) -> np.ndarray:
     """
     Perform the scan for each discretized angle of each beam of the laser,
     loop heavy, should be JITted
@@ -272,8 +272,8 @@ def are_collinear(pt_a: np.ndarray, pt_b: np.ndarray, pt_c: np.ndarray) -> bool:
 
 @njit(cache=True)
 def get_range(
-    pose: np.ndarray, beam_theta: float, va: np.ndarray, vb: np.ndarray
-) -> float:
+    pose, beam_theta: float, va, vb
+) :
     """
     Get the distance at a beam angle to the vector formed by two of the four vertices of a vehicle
 
@@ -310,7 +310,7 @@ def get_range(
 
 @njit(cache=True)
 def get_blocked_view_indices(
-    pose: np.ndarray, vertices: np.ndarray, scan_angles: np.ndarray
+    pose, vertices, scan_angles
 ) -> tuple[int, int]:
     """
     Get the indices of the start and end of blocked fov in scans by another vehicle
@@ -326,8 +326,13 @@ def get_blocked_view_indices(
     """
     # find four vectors formed by pose and 4 vertices:
     vecs = vertices - pose[:2]
-    norms = np.sqrt(np.sum(np.square(vecs), axis=1))
-    unit_vecs = vecs / norms.reshape(4, 1)
+    # norms = np.sqrt(np.sum(np.square(vecs), axis=1))
+    norms = np.empty((4,))
+    for i in range(4):
+        norms[i] = np.sqrt(vecs[i, 0] ** 2 + vecs[i, 1] ** 2)
+    unit_vecs = np.empty((4, 2))
+    for i in range(4):
+        unit_vecs[i, :] = vecs[i, :] / norms[i]
 
     # find angles between all four and pose vector
     pose_theta = pose[2]
@@ -382,6 +387,31 @@ def ray_cast(
     return scan
 
 
+@njit(cache=True)
+def ray_cast_multiple(
+    pose: np.ndarray,
+    scan: np.ndarray,
+    scan_angles: np.ndarray,
+    opp_vertices: np.ndarray,
+) -> np.ndarray:
+    """
+    Modify a scan by ray casting onto multiple other agents
+
+    Args:
+        pose (np.ndarray(3, )): pose of the vehicle performing scan
+        scan (np.ndarray(num_beams, )): original scan to modify
+        scan_angles (np.ndarray(num_beams, )): corresponding beam angles
+        opp_vertices (np.ndarray(num_opps, 4, 2)): vertices of all other agents
+
+    Returns:
+        new_scan (np.ndarray(num_beams, )): modified scan
+    """
+    new_scan = scan
+    for i in range(opp_vertices.shape[0]):
+        new_scan = ray_cast(pose, new_scan, scan_angles, opp_vertices[i, :, :])
+    return new_scan
+
+
 # pylint: disable=too-many-instance-attributes
 class ScanSimulator2D:
     """
@@ -429,7 +459,7 @@ class ScanSimulator2D:
         self.cosines = np.cos(theta_arr)
 
     # pylint: disable=too-many-return-statements
-    def set_map(self, map_path: str, map_ext: str) -> bool:
+    def set_map(self, map_path: str, map_ext: str) -> None:
         """
         Set the bitmap of the scan simulator by path
 
@@ -502,10 +532,10 @@ class ScanSimulator2D:
 
     def scan(
         self,
-        pose: np.ndarray,
+        pose,
         rng: Optional[np.random.Generator],
         std_dev: float = 0.01,
-    ) -> np.ndarray:
+    ) :
         """
         Perform simulated 2D scan by pose on the given map
 

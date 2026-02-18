@@ -8,10 +8,10 @@ from typing import Any
 
 import numpy as np
 
-from .collision_models import get_vertices
+from .collision_models import get_all_vertices
 from .dynamic_models import pid, vehicle_dynamics_st
 from .integrator import Integrator
-from .laser_models import ScanSimulator2D, check_ttc_jit, ray_cast
+from .laser_models import ScanSimulator2D, check_ttc_jit, ray_cast_multiple
 from .vehicle_params import VehicleParams
 
 
@@ -78,10 +78,10 @@ class RaceCar:
 
     def __init__(
         self,
-        params,
-        seed,
-        **kwargs,
-    ):
+        params: dict[str, Any],
+        seed: int,
+        **kwargs: Any,
+    ) -> None:
         """
         Init function
 
@@ -162,7 +162,7 @@ class RaceCar:
             RaceCar._init_scan_simulator(params, num_beams, fov)
 
     @staticmethod
-    def _init_scan_simulator(params: dict[str, Any], num_beams: int, fov: float):
+    def _init_scan_simulator(params: dict[str, Any], num_beams: int, fov: float) -> None:
         """Helper to initialize shared class-level scan simulator and arrays."""
         RaceCar.scan_simulator = ScanSimulator2D(num_beams, fov)
         scan_ang_incr = RaceCar.scan_simulator.get_increment()
@@ -282,22 +282,21 @@ class RaceCar:
         new_scan = scan
 
         # loop over all opponent vehicle poses
-        if self.opp_poses is not None:
-            for opp_pose in self.opp_poses:
-                # get vertices of current oppoenent
-                opp_vertices = get_vertices(
-                    opp_pose,
-                    self.v_params.params["length"],
-                    self.v_params.params["width"],
-                )
+        if self.opp_poses is not None and self.opp_poses.shape[0] > 0:
+            # get vertices of all opponents
+            opp_vertices = get_all_vertices(
+                self.opp_poses,
+                self.v_params.params["length"],
+                self.v_params.params["width"],
+            )
 
-                if RaceCar.scan_angles is not None:
-                    new_scan = ray_cast(
-                        np.append(self.state[0:2], self.state[4]),
-                        new_scan,
-                        RaceCar.scan_angles,
-                        opp_vertices,
-                    )
+            if RaceCar.scan_angles is not None:
+                new_scan = ray_cast_multiple(
+                    np.append(self.state[0:2], self.state[4]),
+                    new_scan,
+                    RaceCar.scan_angles,
+                    opp_vertices,
+                )
 
         return new_scan
 

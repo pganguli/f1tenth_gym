@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from .collision_models import collision_multiple, get_vertices
+from .collision_models import collision_multiple, get_all_vertices
 from .race_car import RaceCar
 from .simulator_params import SimulatorParams
 
@@ -28,7 +28,7 @@ class Simulator:
     def __init__(
         self,
         params: SimulatorParams,
-    ):
+    ) -> None:
         """
         Init function
 
@@ -109,13 +109,11 @@ class Simulator:
             None
         """
         # get vertices of all agents
-        all_vertices = np.empty((self.params.num_agents, 4, 2))
-        for i in range(self.params.num_agents):
-            all_vertices[i, :, :] = get_vertices(
-                np.append(self.agents[i].state[0:2], self.agents[i].state[4]),
-                self.params.vehicle_params["length"],
-                self.params.vehicle_params["width"],
-            )
+        all_vertices = get_all_vertices(
+            self.agent_poses,
+            self.params.vehicle_params["length"],
+            self.params.vehicle_params["width"],
+        )
         self.collisions, self.collision_idx = collision_multiple(all_vertices)
 
     def step(self, control_inputs: np.ndarray) -> dict[str, Any]:

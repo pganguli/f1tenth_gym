@@ -14,9 +14,9 @@ from f110_gym.envs.base_classes import Integrator
 from f110_planning.tracking import PurePursuitPlanner
 from f110_planning.utils import get_heading_error, get_side_distances, load_waypoints
 
-DEFAULT_MAP_PATH = "data/maps/Example/Example"
+DEFAULT_MAP_PATH = "data/maps/F1/Oschersleben/Oschersleben_map"
 DEFAULT_MAP_EXT = ".png"
-DEFAULT_WAYPOINT_PATH = "data/maps/Example/Example_raceline.csv"
+DEFAULT_WAYPOINT_PATH = "data/maps/F1/Oschersleben/Oschersleben_centerline.tsv"
 DEFAULT_OUTPUT_DIR = "data/datasets"
 DEFAULT_MAX_STEPS = 4500
 DEFAULT_PLANNER = "pure_pursuit"

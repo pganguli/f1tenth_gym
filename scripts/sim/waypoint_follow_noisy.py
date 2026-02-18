@@ -18,10 +18,10 @@ from f110_planning.tracking import PurePursuitPlanner
 from f110_planning.utils import load_waypoints
 
 # Default configuration
-DEFAULT_MAP = "data/maps/Example/Example"
+DEFAULT_MAP = "data/maps/F1/Oschersleben/Oschersleben_map"
 DEFAULT_MAP_EXT = ".png"
-DEFAULT_WAYPOINTS = ["data/maps/Example/Example_raceline_noisy_normal_m0.0_sd0.05.csv"]
-DEFAULT_START_X = 0.7
+DEFAULT_WAYPOINTS = ["data/maps/F1/Oschersleben/Oschersleben_centerline.tsv"]
+DEFAULT_START_X = 0.0
 DEFAULT_START_Y = 0.0
 DEFAULT_START_THETA = 1.37079632679
 DEFAULT_RENDER_MODE = "human"

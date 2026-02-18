@@ -27,14 +27,14 @@ def main():  # pylint: disable=too-many-locals
     Main function to run the dynamic waypoint following simulation.
     """
     conf = Namespace(
-        map_path="data/maps/Example/Example",
+        map_path="data/maps/F1/Oschersleben/Oschersleben_map",
         map_ext=".png",
-        sx=0.7,
+        sx=0.0,
         sy=0.0,
-        stheta=1.37079632679,
+        stheta=np.pi,
     )
 
-    waypoints = load_waypoints("data/maps/Example/Example_raceline.csv")
+    waypoints = load_waypoints("data/maps/F1/Oschersleben/Oschersleben_centerline.tsv")
 
     planner = DynamicWaypointPlanner(
         waypoints=waypoints, lookahead_distance=1.5, max_speed=5.0, lateral_gain=1.0
@@ -47,7 +47,7 @@ def main():  # pylint: disable=too-many-locals
         num_agents=1,
         timestep=0.01,
         integrator=Integrator.RK4,
-        render_mode="human_fast",
+        render_mode="human",
         render_fps=60,
         max_laps=None,
     )
@@ -59,9 +59,7 @@ def main():  # pylint: disable=too-many-locals
     heading_error_renderer = create_heading_error_renderer(waypoints, agent_idx=0)
     env.unwrapped.add_render_callback(heading_error_renderer)
 
-    dynamic_waypoint_renderer = create_dynamic_waypoint_renderer(
-        waypoints, agent_idx=0, lookahead_distance=1.5, lateral_gain=1.0
-    )
+    dynamic_waypoint_renderer = create_dynamic_waypoint_renderer(planner, agent_idx=0)
     env.unwrapped.add_render_callback(dynamic_waypoint_renderer)
 
     trace_renderer = create_trace_renderer(agent_idx=0)

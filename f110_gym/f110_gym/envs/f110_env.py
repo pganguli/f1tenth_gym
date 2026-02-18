@@ -4,12 +4,13 @@ Author: Hongrui Zheng
 
 # gym imports
 import time
-from typing import Any
+from typing import Any, Optional
 
 import gymnasium as gym
 
 # others
 import numpy as np
+from numba import njit
 
 # gl
 import pyglet
@@ -27,6 +28,56 @@ VIDEO_W = 600
 VIDEO_H = 400
 WINDOW_W = 1000
 WINDOW_H = 800
+
+
+# pylint: disable=too-many-arguments, too-many-positional-arguments, too-many-locals
+@njit(cache=True)
+def update_lap_counts(
+    poses_x: np.ndarray,
+    poses_y: np.ndarray,
+    start_xs: np.ndarray,
+    start_ys: np.ndarray,
+    start_rot: np.ndarray,
+    num_agents: int,
+    current_time: float,
+    near_starts: np.ndarray,
+    toggle_list: np.ndarray,
+    lap_counts: np.ndarray,
+    lap_times: np.ndarray,
+) -> None:
+    """
+    Update lap counts and times based on vehicle positions relative to start line.
+    """
+    left_t = 2.0
+    right_t = 2.0
+
+    for i in range(num_agents):
+        dx = poses_x[i] - start_xs[i]
+        dy = poses_y[i] - start_ys[i]
+
+        tx = start_rot[0, 0] * dx + start_rot[0, 1] * dy
+        ty = start_rot[1, 0] * dx + start_rot[1, 1] * dy
+
+        if ty > left_t:
+            ty -= left_t
+        elif ty < -right_t:
+            ty = -right_t - ty
+        else:
+            ty = 0.0
+
+        dist2 = tx**2 + ty**2
+        closes = dist2 <= 0.1
+
+        if closes and not near_starts[i]:
+            near_starts[i] = True
+            toggle_list[i] += 1
+        elif not closes and near_starts[i]:
+            near_starts[i] = False
+            toggle_list[i] += 1
+
+        lap_counts[i] = toggle_list[i] // 2
+        if toggle_list[i] < 4:
+            lap_times[i] = current_time
 
 
 class F110Env(gym.Env):
@@ -89,11 +140,11 @@ class F110Env(gym.Env):
     metadata = {"render_modes": ["human", "human_fast"], "render_fps": 200}
 
     # rendering
-    renderer = None
-    current_obs = None
-    render_callbacks = []
+    renderer: Optional["EnvRenderer"] = None
+    current_obs: Optional[dict[str, Any]] = None
+    render_callbacks: list[Any] = []
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         # kwargs extraction
         self.seed = kwargs.get("seed", 12345)
         self.render_mode = kwargs.get("render_mode", "human")
@@ -262,31 +313,19 @@ class F110Env(gym.Env):
 
         # pylint: disable=too-many-locals
 
-        left_t = 2
-        right_t = 2
-
-        poses_x = np.array(self.poses_x) - self.start_xs
-        poses_y = np.array(self.poses_y) - self.start_ys
-        delta_pt = np.dot(self.start_rot, np.stack((poses_x, poses_y), axis=0))
-        temp_y = delta_pt[1, :]
-        idx1 = temp_y > left_t
-        idx2 = temp_y < -right_t
-        temp_y[idx1] -= left_t
-        temp_y[idx2] = -right_t - temp_y[idx2]
-        temp_y[np.invert(np.logical_or(idx1, idx2))] = 0
-
-        dist2 = delta_pt[0, :] ** 2 + temp_y**2
-        closes = dist2 <= 0.1
-        for i in range(self.num_agents):
-            if closes[i] and not self.near_starts[i]:
-                self.near_starts[i] = True
-                self.toggle_list[i] += 1
-            elif not closes[i] and self.near_starts[i]:
-                self.near_starts[i] = False
-                self.toggle_list[i] += 1
-            self.lap_counts[i] = self.toggle_list[i] // 2
-            if self.toggle_list[i] < 4:
-                self.lap_times[i] = self.current_time
+        update_lap_counts(
+            np.array(self.poses_x),
+            np.array(self.poses_y),
+            self.start_xs,
+            self.start_ys,
+            self.start_rot,
+            self.num_agents,
+            self.current_time,
+            self.near_starts,
+            self.toggle_list,
+            self.lap_counts,
+            self.lap_times,
+        )
 
         # Check for collision-based termination
         collision_done = bool(self.collisions[self.ego_idx])
@@ -465,7 +504,7 @@ class F110Env(gym.Env):
         """
         self.sim.update_params(params, agent_idx=index)
 
-    def add_render_callback(self, callback_func):
+    def add_render_callback(self, callback_func: Any) -> None:
         """
         Add extra drawing function to call during rendering.
 

@@ -42,7 +42,7 @@ def triple_product(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray:
 
 
 @njit(cache=True)
-def idx_furthest_pt(vertices: np.ndarray, d: np.ndarray) -> int:
+def idx_furthest_pt(vertices, d) -> int:
     """
     Return the index of the vertex furthest away along a direction in the list of vertices
 
@@ -89,8 +89,18 @@ def collision(vertices1: np.ndarray, vertices2: np.ndarray) -> bool:
     index = 0
     simplex = np.empty((3, 2))
 
-    position1 = np.mean(vertices1, axis=0)
-    position2 = np.mean(vertices2, axis=0)
+    # Calculate mean manually to avoid axis=0 issues in Numba/Py3.14
+    position1 = np.zeros(2)
+    for k in range(vertices1.shape[0]):
+        position1[0] += vertices1[k, 0]
+        position1[1] += vertices1[k, 1]
+    position1 /= vertices1.shape[0]
+
+    position2 = np.zeros(2)
+    for k in range(vertices2.shape[0]):
+        position2[0] += vertices2[k, 0]
+        position2[1] += vertices2[k, 1]
+    position2 /= vertices2.shape[0]
 
     d = position1 - position2
 
@@ -147,7 +157,7 @@ def collision(vertices1: np.ndarray, vertices2: np.ndarray) -> bool:
 
 
 @njit(cache=True)
-def collision_multiple(vertices: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def collision_multiple(vertices) -> tuple[np.ndarray, np.ndarray]:
     """
     Check pair-wise collisions for all provided vertices
 
@@ -233,3 +243,23 @@ def get_vertices(pose: np.ndarray, length: float, width: float) -> np.ndarray:
         [[rl[0], rl[1]], [rr[0], rr[1]], [fr[0], fr[1]], [fl[0], fl[1]]]
     )
     return vertices
+
+
+@njit(cache=True)
+def get_all_vertices(poses: np.ndarray, length: float, width: float) -> np.ndarray:
+    """
+    Utility function to return vertices of all cars given poses and size
+
+    Args:
+        poses (np.ndarray, (num_agents, 3)): current world coordinate poses of the vehicles
+        length (float): car length
+        width (float): car width
+
+    Returns:
+        all_vertices (np.ndarray, (num_agents, 4, 2)): corner vertices of all vehicle bodies
+    """
+    num_agents = poses.shape[0]
+    all_vertices = np.empty((num_agents, 4, 2))
+    for i in range(num_agents):
+        all_vertices[i, :, :] = get_vertices(poses[i, :], length, width)
+    return all_vertices

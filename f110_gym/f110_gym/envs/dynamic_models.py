@@ -83,11 +83,10 @@ def steering_constraint(
 
 @njit(cache=True)
 def vehicle_dynamics_ks(
-    *,
     x: np.ndarray,
     u_init: np.ndarray,
     params: VehicleParams,
-):
+) -> np.ndarray:
     """
     Single Track Kinematic Vehicle Dynamics.
 
@@ -134,7 +133,7 @@ def vehicle_dynamics_st(
     x: np.ndarray,
     u_init: np.ndarray,
     params: VehicleParams,
-):
+) -> np.ndarray:
     """
     Single Track Dynamic Vehicle Dynamics.
 
@@ -174,9 +173,9 @@ def vehicle_dynamics_st(
         # system dynamics
         x_ks = x[0:5]
         f_ks = vehicle_dynamics_ks(
-            x=x_ks,
-            u_init=u,
-            params=params,
+            x_ks,
+            u,
+            params,
         )
         f = np.hstack(
             (

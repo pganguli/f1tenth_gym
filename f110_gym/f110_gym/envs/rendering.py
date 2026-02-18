@@ -40,7 +40,7 @@ class CarShape:
         vertices: list[float],
         color: tuple[int, int, int],
         batch: pyglet.graphics.Batch,
-    ):
+    ) -> None:
         """
         Create a car shape from 4 corner vertices.
 
@@ -59,7 +59,7 @@ class CarShape:
         self._triangles: list[pyglet.shapes.Triangle] = []
         self._update_triangles()
 
-    def _update_triangles(self):
+    def _update_triangles(self) -> None:
         """Update the triangle shapes based on current vertices."""
         # Delete old triangles
         for tri in self._triangles:
@@ -98,11 +98,11 @@ class CarShape:
         return self._vertices_data
 
     @vertices.setter
-    def vertices(self, value: list[float]):
+    def vertices(self, value: list[float]) -> None:
         self._vertices_data = value
         self._update_triangles()
 
-    def delete(self):
+    def delete(self) -> None:
         """Clean up and delete all sub-shapes associated with this car."""
         for tri in self._triangles:
             tri.delete()
@@ -163,7 +163,7 @@ class EnvRenderer(pyglet.window.Window):
     resizing window, and rendering the environment
     """
 
-    def __init__(self, width: int, height: int, *args: Any, **kwargs: Any):
+    def __init__(self, width: int, height: int, *args: Any, **kwargs: Any) -> None:
         """
         Class constructor
 
@@ -227,6 +227,57 @@ class EnvRenderer(pyglet.window.Window):
         fps_display.label.color = (200, 200, 200, 255)
 
         self.ui = RendererUI(score_label=score_label, fps_display=fps_display)
+
+    @property
+    def cars(self) -> list[CarShape]:
+        """Backwards compatibility for cars list."""
+        return self.sim_state.cars
+
+    @property
+    def scans(self) -> list[np.ndarray] | None:
+        """Backwards compatibility for scans list."""
+        return self.sim_state.scans
+
+    @property
+    def poses(self) -> np.ndarray | None:
+        """Backwards compatibility for poses."""
+        return self.sim_state.poses
+
+    @property
+    def left(self) -> float:
+        """Backwards compatibility for viewport left bound."""
+        return self.camera.viewport.left
+
+    @left.setter
+    def left(self, value: float) -> None:
+        self.camera.viewport.left = value
+
+    @property
+    def right(self) -> float:
+        """Backwards compatibility for viewport right bound."""
+        return self.camera.viewport.right
+
+    @right.setter
+    def right(self, value: float) -> None:
+        self.camera.viewport.right = value
+
+    @property
+    def top(self) -> float:
+        """Backwards compatibility for viewport top bound."""
+        return self.camera.viewport.top
+
+    @top.setter
+    def top(self, value: float) -> None:
+        self.camera.viewport.top = value
+
+    @property
+    def bottom(self) -> float:
+        """Backwards compatibility for viewport bottom bound."""
+        return self.camera.viewport.bottom
+
+    @bottom.setter
+    def bottom(self, value: float) -> None:
+        self.camera.viewport.bottom = value
 
     def update_map(self, map_path: str, map_ext: str) -> None:
         """
@@ -447,7 +498,7 @@ class EnvRenderer(pyglet.window.Window):
         ui.score_label.draw()
         ui.fps_display.draw()
 
-    def window_block(self):
+    def window_block(self) -> "_ProjectionContext":
         """Context manager for setting window projection"""
         return _ProjectionContext(self)
 
@@ -548,13 +599,13 @@ class EnvRenderer(pyglet.window.Window):
 class _ProjectionContext:
     """Context manager for temporarily setting window projection."""
 
-    def __init__(self, window: EnvRenderer):
+    def __init__(self, window: EnvRenderer) -> None:
         self.window = window
 
-    def __enter__(self):
+    def __enter__(self) -> "_ProjectionContext":
         # Store old view and set new projection
         self.window.view = pyglet.math.Mat4()
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args: Any) -> None:
         pass

@@ -40,14 +40,14 @@ def main():  # pylint: disable=too-many-locals
     Main function to run manual simulation with RANSAC assistance.
     """
     conf = Namespace(
-        map_path="data/maps/Example/Example",
+        map_path="data/maps/F1/Oschersleben/Oschersleben_map",
         map_ext=".png",
-        sx=0.7,
+        sx=0.0,
         sy=0.0,
         stheta=1.37079632679,
     )
 
-    waypoints = load_waypoints("data/maps/Example/Example_raceline.csv")
+    waypoints = load_waypoints("data/maps/F1/Oschersleben/Oschersleben_centerline.tsv")
 
     planner = RansacMidlinePlanner(max_speed=5.0)
 
