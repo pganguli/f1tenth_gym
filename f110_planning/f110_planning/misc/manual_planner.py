@@ -1,3 +1,7 @@
+"""
+Manual planner module for keyboard control.
+"""
+
 from typing import Any
 
 from pyglet import display as pyg_display
@@ -6,7 +10,7 @@ from pyglet import window as pyg_window
 from .. import Action, BasePlanner
 
 
-class ManualPlanner(BasePlanner):
+class ManualPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
     """
     Example Planner
     """

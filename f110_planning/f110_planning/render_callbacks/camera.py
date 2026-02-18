@@ -1,3 +1,7 @@
+"""
+Camera tracking render callback for following the ego vehicle.
+"""
+
 from f110_gym.envs.rendering import EnvRenderer
 
 

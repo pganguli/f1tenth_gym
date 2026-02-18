@@ -1,9 +1,13 @@
+"""
+Flippy planner module.
+"""
+
 from typing import Any
 
 from .. import Action, BasePlanner
 
 
-class FlippyPlanner(BasePlanner):
+class FlippyPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
     """
     Planner designed to exploit integration methods and dynamics.
     For testing only. To observe this error, use single track dynamics for all velocities >0.1

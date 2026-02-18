@@ -1,3 +1,7 @@
+"""
+Gap Follower Planner module.
+"""
+
 from typing import Any
 
 import numpy as np
@@ -9,11 +13,12 @@ LIDAR_IGNORE_INDICES = 135
 MAX_LIDAR_DIST = 3000000.0
 
 
-class GapFollowerPlanner(BasePlanner):
+class GapFollowerPlanner(BasePlanner):  # pylint: disable=too-many-instance-attributes
     """
     Gap Follower Planner for F1TENTH
     """
 
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
     def __init__(
         self,
         bubble_radius: float = 160,
@@ -25,7 +30,7 @@ class GapFollowerPlanner(BasePlanner):
         max_lidar_dist: float = MAX_LIDAR_DIST,
     ):
         # used when calculating the angles of the LiDAR data
-        self.radians_per_elem = None
+        self.radians_per_elem: float = 0.0
         self.bubble_radius = bubble_radius
         self.corners_speed = corners_speed
         self.straights_speed = straights_speed
@@ -82,16 +87,22 @@ class GapFollowerPlanner(BasePlanner):
             )
             / self.best_point_conv_size
         )
-        return averaged_max_gap.argmax() + start_i
+        return int(averaged_max_gap.argmax()) + start_i
 
     def get_angle(self, range_index: int, range_len: int) -> float:
-        """Get the angle of a particular element in the LiDAR data and transform it into an appropriate steering angle"""
+        """
+        Get the angle of a particular element in the LiDAR data and transform
+        it into an appropriate steering angle.
+        """
         lidar_angle = (range_index - (range_len / 2)) * self.radians_per_elem
         steering_angle = lidar_angle / 2
         return steering_angle
 
-    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
-        """Process each LiDAR scan as per the Follow Gap algorithm & publish an AckermannDriveStamped Message"""
+    def plan(self, obs: dict[str, Any], ego_idx: int = 0) -> Action:
+        """
+        Process each LiDAR scan as per the Follow Gap algorithm & publish an
+        AckermannDriveStamped Message.
+        """
         proc_ranges = self.preprocess_lidar(obs["scans"][ego_idx])
         # Find closest point to LiDAR
         closest = proc_ranges.argmin()
@@ -99,10 +110,8 @@ class GapFollowerPlanner(BasePlanner):
         # Eliminate all points inside 'bubble' (set them to zero)
         min_index = closest - self.bubble_radius
         max_index = closest + self.bubble_radius
-        if min_index < 0:
-            min_index = 0
-        if max_index >= len(proc_ranges):
-            max_index = len(proc_ranges) - 1
+        min_index = max(min_index, 0)
+        max_index = min(max_index, len(proc_ranges) - 1)
         proc_ranges[min_index:max_index] = 0
 
         # Find max length gap

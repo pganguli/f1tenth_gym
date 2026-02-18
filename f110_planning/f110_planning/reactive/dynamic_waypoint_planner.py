@@ -15,7 +15,7 @@ from .. import Action, BasePlanner
 from ..utils import get_actuation, get_heading_error, get_side_distances
 
 
-class DynamicWaypointPlanner(BasePlanner):
+class DynamicWaypointPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
     """
     Dynamic waypoint following planner for F1TENTH
 
@@ -35,6 +35,7 @@ class DynamicWaypointPlanner(BasePlanner):
         lateral_gain (float, default=1.0): Gain for lateral centering correction
     """
 
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
     def __init__(
         self,
         waypoints: np.ndarray,
@@ -49,7 +50,7 @@ class DynamicWaypointPlanner(BasePlanner):
         self.wheelbase = wheelbase
         self.lateral_gain = lateral_gain
 
-    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
+    def plan(self, obs: dict[str, Any], ego_idx: int = 0) -> Action:
         """
         Plan action by computing dynamic waypoint from sensor data.
 

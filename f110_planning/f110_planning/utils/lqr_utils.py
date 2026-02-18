@@ -6,6 +6,7 @@ import numpy as np
 from numba import njit
 
 
+# pylint: disable=too-many-arguments, too-many-positional-arguments, invalid-name
 @njit(cache=True)
 def solve_lqr(
     A: np.ndarray,

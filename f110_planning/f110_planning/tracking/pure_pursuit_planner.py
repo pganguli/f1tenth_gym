@@ -8,13 +8,14 @@ from typing import Any, Optional
 import numpy as np
 
 from .. import Action, BasePlanner
-from ..utils import get_actuation, intersect_point, nearest_point
+from ..utils import get_actuation, get_vehicle_state, intersect_point, nearest_point
 
 
-class PurePursuitPlanner(BasePlanner):
+class PurePursuitPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
     """
     Pure pursuit tracking controller
-    Reference: Coulter 1992, https://www.ri.cmu.edu/pub_files/pub3/coulter_r_craig_1992_1/coulter_r_craig_1992_1.pdf
+    Reference: Coulter 1992,
+    https://www.ri.cmu.edu/pub_files/pub3/coulter_r_craig_1992_1/coulter_r_craig_1992_1.pdf
 
     All vehicle pose used by the planner should be in the map frame.
 
@@ -23,7 +24,8 @@ class PurePursuitPlanner(BasePlanner):
 
     Attributes:
         max_reacquire (float): maximum radius (meters) for reacquiring current waypoints
-        waypoints (numpy.ndarray [N x 4]): static list of waypoints, columns are [x, y, velocity, heading]
+        waypoints (numpy.ndarray [N x 4]): static list of waypoints
+            columns are [x, y, velocity, heading]
     """
 
     def __init__(
@@ -50,16 +52,17 @@ class PurePursuitPlanner(BasePlanner):
             position (numpy.ndarray (2, )): current position of the vehicle (x, y)
 
         Returns:
-            current_waypoint (numpy.ndarray (3, )): selected waypoint (x, y, velocity), None if no point is found
+            current_waypoint (numpy.ndarray (3, )): selected waypoint (x, y, velocity)
+                None if no point is found
         """
         if self.waypoints is None:
             raise ValueError(
                 "Please set waypoints to track during planner instantiation."
             )
 
-        nearest_p, nearest_dist, t, i = nearest_point(position, self.waypoints[:, 0:2])
+        _, nearest_dist, t, i = nearest_point(position, self.waypoints[:, 0:2])
         if nearest_dist < lookahead_distance:
-            lookahead_point, i2, t2 = intersect_point(
+            _, i2, _ = intersect_point(
                 position, lookahead_distance, self.waypoints[:, 0:2], i + t, wrap=True
             )
             if i2 is None:
@@ -68,10 +71,11 @@ class PurePursuitPlanner(BasePlanner):
                 [self.waypoints[i2, 0], self.waypoints[i2, 1], self.waypoints[i, 2]]
             )
             return current_waypoint
-        elif nearest_dist < self.max_reacquire:
+
+        if nearest_dist < self.max_reacquire:
             return self.waypoints[i, :]
-        else:
-            return None
+
+        return None
 
     def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
         """
@@ -84,7 +88,8 @@ class PurePursuitPlanner(BasePlanner):
         Returns:
             Action: commanded velocity and steering angle
         """
-        position = np.array([obs["poses_x"][ego_idx], obs["poses_y"][ego_idx]])
+        vehicle_state = get_vehicle_state(obs, ego_idx)
+        position = vehicle_state[:2]
         lookahead_point = self._get_current_waypoint(self.lookahead_distance, position)
 
         if lookahead_point is None:
@@ -94,7 +99,7 @@ class PurePursuitPlanner(BasePlanner):
         lookahead_point[2] = self.max_speed
 
         speed, steering_angle = get_actuation(
-            obs["poses_theta"][ego_idx],
+            vehicle_state[2],
             lookahead_point,
             position,
             self.lookahead_distance,

@@ -1,11 +1,15 @@
+"""
+Random planner module.
+"""
+
 import random
 from typing import Any
 
 from .. import Action, BasePlanner
 
 
-class RandomPlanner(BasePlanner):
-    "A planner for generating random controls."
+class RandomPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
+    """A planner for generating random controls."""
 
     def __init__(
         self,

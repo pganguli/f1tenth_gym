@@ -1,3 +1,7 @@
+"""
+Render callback for visualizing the trajectory trace of an agent.
+"""
+
 import numpy as np
 import pyglet
 from f110_gym.envs.rendering import EnvRenderer

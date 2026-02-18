@@ -18,12 +18,14 @@ def nearest_point(
     Args:
         point (numpy.ndarray, (2, )): (x, y) of current pose
         trajectory (numpy.ndarray, (N, 2)): array of (x, y) trajectory waypoints
-            NOTE: points in trajectory must be unique. If they are not unique, a divide by 0 error will destroy the world
+            NOTE: points in trajectory must be unique. If they are not unique,
+            a divide by 0 error will destroy the world
 
     Returns:
         nearest_point (numpy.ndarray, (2, )): nearest point on the trajectory to the point
         nearest_dist (float): distance to the nearest point
-        t (float): nearest point's location as a segment between 0 and 1 on the vector formed by the closest two points on the trajectory. (p_i---*-------p_i+1)
+        t (float): nearest point's location as a segment between 0 and 1 on the vector
+            formed by the closest two points on the trajectory. (p_i---*-------p_i+1)
         i (int): index of nearest point in the array of trajectory waypoints
     """
     diffs = trajectory[1:, :] - trajectory[:-1, :]
@@ -42,9 +44,9 @@ def nearest_point(
     min_dist_segment = np.argmin(dists)
     return (
         projections[min_dist_segment],
-        dists[min_dist_segment],
-        t[min_dist_segment],
-        min_dist_segment,
+        float(dists[min_dist_segment]),
+        float(t[min_dist_segment]),
+        int(min_dist_segment),
     )
 
 
@@ -56,96 +58,43 @@ def intersect_point(
     wrap: bool = False,
 ) -> tuple[Optional[np.ndarray], Optional[int], Optional[float]]:
     """
-    starts at beginning of trajectory, and find the first point one radius away from the given point along the trajectory.
+    Starts at beginning of trajectory, and find the first point one radius away
+    from the given point along the trajectory.
 
     Assumes that the first segment passes within a single radius of the point
 
     http://codereview.stackexchange.com/questions/86421/line-segment-to-circle-collision-algorithm
     """
-    start_i = int(t)
-    start_t = t % 1.0
-    first_t = None
-    first_i = None
-    first_p = None
+    start_idx = int(t)
     trajectory = np.ascontiguousarray(trajectory)
-    for i in range(start_i, trajectory.shape[0] - 1):
-        start = trajectory[i, :]
-        end = trajectory[i + 1, :] + 1e-6
-        V = np.ascontiguousarray(end - start)
 
-        a = np.dot(V, V)
-        b = 2.0 * np.dot(V, start - point)
-        c = (
-            np.dot(start, start)
-            + np.dot(point, point)
-            - 2.0 * np.dot(start, point)
-            - radius * radius
-        )
-        discriminant = b * b - 4 * a * c
+    for offset in range(len(trajectory) if wrap else len(trajectory) - 1 - start_idx):
+        idx = (start_idx + offset) % len(trajectory)
+        p1 = trajectory[idx]
+        v_vec = trajectory[(idx + 1) % len(trajectory)] + 1e-6 - p1
 
-        if discriminant < 0:
-            continue
-        #   print "NO INTERSECTION"
-        # else:
-        # if discriminant >= 0.0:
-        discriminant = np.sqrt(discriminant)
-        t1 = (-b - discriminant) / (2.0 * a)
-        t2 = (-b + discriminant) / (2.0 * a)
-        if i == start_i:
-            if t1 >= 0.0 and t1 <= 1.0 and t1 >= start_t:
-                first_t = t1
-                first_i = i
-                first_p = start + t1 * V
-                break
-            if t2 >= 0.0 and t2 <= 1.0 and t2 >= start_t:
-                first_t = t2
-                first_i = i
-                first_p = start + t2 * V
-                break
-        elif t1 >= 0.0 and t1 <= 1.0:
-            first_t = t1
-            first_i = i
-            first_p = start + t1 * V
-            break
-        elif t2 >= 0.0 and t2 <= 1.0:
-            first_t = t2
-            first_i = i
-            first_p = start + t2 * V
-            break
-    # wrap around to the beginning of the trajectory if no intersection is found1
-    if wrap and first_p is None:
-        for i in range(-1, start_i):
-            start = trajectory[i % trajectory.shape[0], :]
-            end = trajectory[(i + 1) % trajectory.shape[0], :] + 1e-6
-            V = end - start
+        t1, t2 = _get_intersections(point, radius, p1, v_vec)
+        if t1 is not None:
+            # Check only intersections within the segment [0, 1]
+            # If the first segment, only check after start_t
+            lower = t % 1.0 if offset == 0 else 0.0
+            for ti in (t1, t2):
+                if ti is not None and lower <= ti <= 1.0:
+                    return p1 + ti * v_vec, idx, ti
 
-            a = np.dot(V, V)
-            b = 2.0 * np.dot(V, start - point)
-            c = (
-                np.dot(start, start)
-                + np.dot(point, point)
-                - 2.0 * np.dot(start, point)
-                - radius * radius
-            )
-            discriminant = b * b - 4 * a * c
+    return None, None, None
 
-            if discriminant < 0:
-                continue
-            discriminant = np.sqrt(discriminant)
-            t1 = (-b - discriminant) / (2.0 * a)
-            t2 = (-b + discriminant) / (2.0 * a)
-            if t1 >= 0.0 and t1 <= 1.0:
-                first_t = t1
-                first_i = i
-                first_p = start + t1 * V
-                break
-            elif t2 >= 0.0 and t2 <= 1.0:
-                first_t = t2
-                first_i = i
-                first_p = start + t2 * V
-                break
 
-    return first_p, first_i, first_t
+def _get_intersections(point, radius, p1, v_vec):
+    """Calculate intersection times of a circle and a line segment."""
+    a = np.dot(v_vec, v_vec)
+    b = 2.0 * np.dot(v_vec, p1 - point)
+    c = np.dot(p1, p1) + np.dot(point, point) - 2.0 * np.dot(p1, point) - radius**2
+    disc = b * b - 4 * a * c
+    if disc < 0:
+        return None, None
+    disc = np.sqrt(disc)
+    return (-b - disc) / (2.0 * a), (-b + disc) / (2.0 * a)
 
 
 @njit(cache=True)

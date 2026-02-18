@@ -34,12 +34,30 @@ def quat_2_rpy(x: float, y: float, z: float, w: float) -> tuple[float, float, fl
 
 @njit(cache=True)
 def get_rotation_matrix(theta: float) -> np.ndarray:
+    """
+    Get 2D rotation matrix for a given angle.
+
+    Args:
+        theta: Rotation angle in radians.
+
+    Returns:
+        np.ndarray: 2x2 rotation matrix.
+    """
     c, s = np.cos(theta), np.sin(theta)
     return np.ascontiguousarray(np.array([[c, -s], [s, c]]))
 
 
 @njit(cache=True)
 def pi_2_pi(angle: float) -> float:
+    """
+    Normalize an angle to the range [-pi, pi].
+
+    Args:
+        angle: Angle in radians.
+
+    Returns:
+        float: Normalized angle.
+    """
     if angle > np.pi:
         return angle - 2.0 * np.pi
     if angle < -np.pi:

@@ -13,7 +13,7 @@ from sklearn.linear_model import RANSACRegressor
 from .. import Action, BasePlanner
 
 
-class RansacMidlinePlanner(BasePlanner):
+class RansacMidlinePlanner(BasePlanner):  # pylint: disable=too-few-public-methods
     """
     RANSAC-based midline following planner for F1TENTH
 
@@ -30,6 +30,7 @@ class RansacMidlinePlanner(BasePlanner):
         track_width (float, default=0.31): Expected track width for fallback
     """
 
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
     def __init__(
         self,
         fov: float = 4.7,
@@ -48,7 +49,7 @@ class RansacMidlinePlanner(BasePlanner):
         self.kp_lateral = kp_lateral
         self.track_width = track_width
 
-    def _compute_midline(self, ranges: np.ndarray) -> tuple[float, float, list]:
+    def _compute_midline(self, ranges: np.ndarray) -> tuple[float, float, list]:  # pylint: disable=too-many-locals
         """
         Compute midline heading and lateral error from LiDAR scan.
 
@@ -61,10 +62,10 @@ class RansacMidlinePlanner(BasePlanner):
                 - e_y: lateral error [m], positive = car left of midline
                 - wall_lines: list of (slope, intercept) tuples for walls
         """
-        N = len(ranges)
+        n_ranges = len(ranges)
 
         # Convert polar to Cartesian coordinates
-        angles = np.linspace(-self.fov / 2, self.fov / 2, N)
+        angles = np.linspace(-self.fov / 2, self.fov / 2, n_ranges)
         x = ranges * np.cos(angles)
         y = ranges * np.sin(angles)
 
@@ -109,7 +110,7 @@ class RansacMidlinePlanner(BasePlanner):
 
         return psi_mid, e_y, [(a1, b1), (a2, b2)]
 
-    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
+    def plan(self, obs: dict[str, Any], ego_idx: int = 0) -> Action:
         """
         Plan action based on RANSAC midline following.
 
@@ -130,4 +131,3 @@ class RansacMidlinePlanner(BasePlanner):
         speed = self.max_speed
 
         return Action(steer=steer, speed=speed)
-

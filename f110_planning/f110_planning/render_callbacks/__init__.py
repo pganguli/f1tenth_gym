@@ -1,3 +1,7 @@
+"""
+Render callbacks for the F1TENTH simulation.
+"""
+
 from .camera import camera_tracking
 from .dynamic_waypoint import create_dynamic_waypoint_renderer
 from .lidar import create_heading_error_renderer, render_lidar, render_side_distances

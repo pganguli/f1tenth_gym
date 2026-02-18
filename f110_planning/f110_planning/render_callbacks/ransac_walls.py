@@ -8,6 +8,7 @@ from f110_gym.envs.rendering import EnvRenderer
 from sklearn.linear_model import RANSACRegressor
 
 
+# pylint: disable=too-many-arguments, too-many-positional-arguments
 def create_ransac_walls_renderer(
     agent_idx: int = 0,
     fov: float = 4.7,
@@ -27,117 +28,94 @@ def create_ransac_walls_renderer(
         track_width: Expected track width for fallback
         horizon: Forward viewing distance in meters
     """
-
-    def compute_midline(ranges):
-        """Compute wall fitting and midline from LiDAR scan"""
-        N = len(ranges)
-
-        # Convert polar to Cartesian coordinates
-        angles = np.linspace(-fov / 2, fov / 2, N)
-        x = ranges * np.cos(angles)
-        y = ranges * np.sin(angles)
-
-        # Filter valid points
-        mask = (ranges > 0.01) & (ranges < max_range)
-        if np.sum(mask) < 10:
-            return 0.0, 0.0, [(0, 0), (0, 0)]
-
-        x_valid = x[mask]
-        y_valid = y[mask]
-
-        # Fit first wall with RANSAC
-        ransac1 = RANSACRegressor(residual_threshold=ransac_thresh, random_state=42)
-        ransac1.fit(x_valid.reshape(-1, 1), y_valid)
-        a1 = ransac1.estimator_.coef_[0]
-        b1 = ransac1.estimator_.intercept_
-
-        # Remove inliers to fit second wall
-        inliers1 = ransac1.inlier_mask_
-        remaining_x = x_valid[~inliers1]
-        remaining_y = y_valid[~inliers1]
-
-        if len(remaining_x) >= 2:
-            ransac2 = RANSACRegressor(residual_threshold=ransac_thresh, random_state=42)
-            ransac2.fit(remaining_x.reshape(-1, 1), remaining_y)
-            a2 = ransac2.estimator_.coef_[0]
-            b2 = ransac2.estimator_.intercept_
-        else:
-            # Second wall not visible, assume parallel offset
-            a2 = a1
-            b2 = b1 + track_width
-
-        # Compute midline heading and lateral offset
-        psi_mid = 0.5 * (np.arctan(a1) + np.arctan(a2))
-        y_mid = 0.5 * (b1 + b2)
-        e_y = -y_mid
-
-        return psi_mid, e_y, [(a1, b1), (a2, b2)]
+    attr_name = f"ransac_lines_{agent_idx}"
 
     def render_ransac_walls(env_renderer: EnvRenderer) -> None:
-        e = env_renderer
-
-        if e.scans is None or e.poses is None or e.poses.shape[0] <= agent_idx:
+        if (
+            env_renderer.scans is None
+            or env_renderer.poses is None
+            or env_renderer.poses.shape[0] <= agent_idx
+            or not env_renderer.cars
+        ):
             return
-
-        if not e.cars or len(e.cars) <= agent_idx:
-            return
-
-        # Get car pose from vertices (pixel coordinates)
-        v = e.cars[agent_idx].vertices
-        x_car = np.mean(v[::2])
-        y_car = np.mean(v[1::2])
-        yaw = e.poses[agent_idx][2]
-        scan = e.scans[agent_idx]
-        scale = 50  # Visualization scale
-
-        # Compute fitted lines
-        psi_mid, e_y, wall_lines = compute_midline(scan)
 
         # Clear previous lines
-        if not hasattr(e, f"ransac_lines_{agent_idx}"):
-            setattr(e, f"ransac_lines_{agent_idx}", [])
-
-        ransac_lines = getattr(e, f"ransac_lines_{agent_idx}")
-        for line in ransac_lines:
+        if not hasattr(env_renderer, attr_name):
+            setattr(env_renderer, attr_name, [])
+        for line in getattr(env_renderer, attr_name):
             line.delete()
-        ransac_lines.clear()
+        getattr(env_renderer, attr_name).clear()
 
-        # Forward horizon in vehicle frame
-        x_horizon = np.linspace(0, horizon, 10)
+        # Compute fitted lines
+        psi_mid, y_mid_f, walls = _compute_midline(
+            env_renderer.scans[agent_idx], fov, max_range, ransac_thresh, track_width
+        )
 
-        # Draw walls (cyan) and midline (yellow)
-        for idx, (a, b) in enumerate(wall_lines + [(0.0, 0.0)]):
-            if idx == 2:  # midline
-                a = np.tan(psi_mid)
-                b = -e_y
-                color = (255, 255, 0)  # yellow
-            else:
-                color = (0, 255, 255)  # cyan for walls
+        # Pose and horizontal linspace
+        car_pose = (
+            np.mean(env_renderer.cars[agent_idx].vertices[::2]),
+            np.mean(env_renderer.cars[agent_idx].vertices[1::2]),
+            env_renderer.poses[agent_idx][2],
+        )
+        x_hor = np.linspace(0, horizon, 10)
 
-            # Draw line segments
-            for i in range(len(x_horizon) - 1):
-                x0, x1 = x_horizon[i], x_horizon[i + 1]
-                y0, y1 = a * x0 + b, a * x1 + b
-
-                # Transform from vehicle frame to world frame
-                # Vehicle frame: x forward, y left
-                # World frame: standard coordinates
-                dx0 = np.cos(yaw) * x0 - np.sin(yaw) * y0
-                dy0 = np.sin(yaw) * x0 + np.cos(yaw) * y0
-                dx1 = np.cos(yaw) * x1 - np.sin(yaw) * y1
-                dy1 = np.sin(yaw) * x1 + np.cos(yaw) * y1
-
-                # Create line shape
-                line = pyglet.shapes.Line(
-                    x_car + dx0 * scale,
-                    y_car + dy0 * scale,
-                    x_car + dx1 * scale,
-                    y_car + dy1 * scale,
-                    thickness=2,
-                    color=color,
-                    batch=e.batch,
-                )
-                ransac_lines.append(line)
+        # Draw walls and midline
+        for i, (a, b) in enumerate(walls + [(np.tan(psi_mid), y_mid_f)]):
+            color = (255, 255, 0) if i == 2 else (0, 255, 255)
+            _transform_and_draw(env_renderer, car_pose, a, b, color, x_hor, attr_name)
 
     return render_ransac_walls
 
+
+def _compute_midline(ranges, fov, max_range, ransac_thresh, track_width):
+    """Compute wall fitting and midline from LiDAR scan"""
+    mask = (ranges > 0.01) & (ranges < max_range)
+    if np.sum(mask) < 10:
+        return 0.0, 0.0, [(0.0, 0.0), (0.0, 0.0)]
+
+    angles = np.linspace(-fov / 2, fov / 2, len(ranges))
+    x_pts, y_pts = (
+        ranges[mask] * np.cos(angles[mask]),
+        ranges[mask] * np.sin(angles[mask]),
+    )
+
+    # Fit first wall
+    ransac1 = RANSACRegressor(residual_threshold=ransac_thresh, random_state=42)
+    ransac1.fit(x_pts.reshape(-1, 1), y_pts)
+    a1, b1 = ransac1.estimator_.coef_[0], ransac1.estimator_.intercept_
+
+    # Fit second wall
+    if np.sum(~ransac1.inlier_mask_) >= 2:
+        ransac2 = RANSACRegressor(residual_threshold=ransac_thresh, random_state=42)
+        ransac2.fit(
+            x_pts[~ransac1.inlier_mask_].reshape(-1, 1), y_pts[~ransac1.inlier_mask_]
+        )
+        a2, b2 = ransac2.estimator_.coef_[0], ransac2.estimator_.intercept_
+    else:
+        a2, b2 = a1, b1 + track_width
+
+    return 0.5 * (np.arctan(a1) + np.arctan(a2)), 0.5 * (b1 + b2), [(a1, b1), (a2, b2)]
+
+
+def _transform_and_draw(env_renderer, car_pose, a, b, color, x_hor, attr_name):
+    """Helper to transform and draw a line segment."""
+    for i in range(len(x_hor) - 1):
+        x_seg = np.array([x_hor[i], x_hor[i + 1]])
+        y_seg = a * x_seg + b
+
+        # Transform from vehicle frame to world frame
+        # car_pose is (x_car, y_car, yaw)
+        dx_val = np.cos(car_pose[2]) * x_seg - np.sin(car_pose[2]) * y_seg
+        dy_val = np.sin(car_pose[2]) * x_seg + np.cos(car_pose[2]) * y_seg
+
+        getattr(env_renderer, attr_name).append(
+            pyglet.shapes.Line(
+                car_pose[0] + dx_val[0] * 50.0,
+                car_pose[1] + dy_val[0] * 50.0,
+                car_pose[0] + dx_val[1] * 50.0,
+                car_pose[1] + dy_val[1] * 50.0,
+                thickness=2,
+                color=color,
+                batch=env_renderer.batch,
+            )
+        )

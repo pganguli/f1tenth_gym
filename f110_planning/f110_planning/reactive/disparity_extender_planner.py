@@ -1,3 +1,7 @@
+"""
+Disparity extender planner module.
+"""
+
 from typing import Any
 
 import numpy as np
@@ -5,7 +9,11 @@ import numpy as np
 from .. import Action, BasePlanner
 
 
-class DisparityExtenderPlanner(BasePlanner):
+class DisparityExtenderPlanner(BasePlanner):  # pylint: disable=too-many-instance-attributes
+    """
+    Reactive planner that uses the disparity extension algorithm to avoid obstacles.
+    """
+
     def __init__(self):
         self.car_width = 0.5
         self.disparity_threshold = 0.2
@@ -38,6 +46,8 @@ class DisparityExtenderPlanner(BasePlanner):
         return min_angle + (float(i) / self.samples_per_degree)
 
     def index_from_angle(self, i: float) -> int:
+        """Returns the index in the LIDAR samples corresponding to the given
+        angle in degrees."""
         center_index = self.scan_width * (self.samples_per_degree / 2)
         return int(center_index) + int(i * float(self.samples_per_degree))
 
@@ -61,7 +71,7 @@ class DisparityExtenderPlanner(BasePlanner):
         distances = lidar_data
         self.lidar_distances = distances
         self.samples_per_degree = float(len(distances)) / self.scan_width
-        target_distance, target_angle = self.find_new_angle()
+        _, target_angle = self.find_new_angle()
         safe_distances = self.masked_disparities
         ind: int = len(safe_distances) // 2
         forward_distance = safe_distances[ind]
@@ -88,8 +98,7 @@ class DisparityExtenderPlanner(BasePlanner):
         max_sample_index = self.index_from_angle(self.max_considered_angle)
         limited_values = limited_values[min_sample_index:max_sample_index]
         distance = limited_values[0]
-        for i in range(len(limited_values)):
-            distance = limited_values[i]
+        for i, distance in enumerate(limited_values):
             if distance > max_distance:
                 angle = self.min_considered_angle + float(i) / self.samples_per_degree
                 max_distance = distance
@@ -196,11 +205,11 @@ class DisparityExtenderPlanner(BasePlanner):
         )
 
     def update_considered_angle(self, steering_angle):
+        """Updates the range of angles considered for potential steering based
+        on the current steering angle."""
         actual_angle = steering_angle
-        if actual_angle < -self.max_turn_angle:
-            actual_angle = -self.max_turn_angle
-        if actual_angle > self.max_turn_angle:
-            actual_angle = self.max_turn_angle
+        actual_angle = max(actual_angle, -self.max_turn_angle)
+        actual_angle = min(actual_angle, self.max_turn_angle)
         self.min_considered_angle = -89.0
         self.max_considered_angle = 89.0
         if actual_angle > 0:
@@ -233,6 +242,7 @@ class DisparityExtenderPlanner(BasePlanner):
         distance_between_samples = np.pi * distance / (180.0 * self.samples_per_degree)
         return int(np.ceil(self.car_width / distance_between_samples))
 
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
     def scale_speed_linearly(
         self, speed_low, speed_high, distance, distance_low, distance_high
     ):
@@ -243,7 +253,8 @@ class DisparityExtenderPlanner(BasePlanner):
         speed_range = speed_high - speed_low
         return speed_low + (speed_range * ratio)
 
-    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
+    def plan(self, obs: dict[str, Any], ego_idx: int = 0) -> Action:
+        """Processes LIDAR data and returns a steering angle and velocity."""
         self.lidar_distances = obs["scans"][ego_idx]
         self.lidar_callback(self.lidar_distances)
         return Action(steer=self.angle, speed=self.velocity)

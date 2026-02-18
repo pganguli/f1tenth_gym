@@ -1,3 +1,7 @@
+"""
+Miscellaneous planners for F1TENTH.
+"""
+
 from .dummy_planner import DummyPlanner
 from .flippy_planner import FlippyPlanner
 from .manual_planner import ManualPlanner

@@ -1,3 +1,7 @@
+"""
+LiDAR and path tracking utility functions.
+"""
+
 import numpy as np
 from numba import njit
 
@@ -70,7 +74,7 @@ def get_heading_error(
                negative means car is turning right of intended path.
     """
     # Get nearest point on the waypoint trajectory
-    nearest_p, nearest_dist, t, i = nearest_point(car_position, waypoints[:, 0:2])
+    _, _, _, i = nearest_point(car_position, waypoints[:, 0:2])
 
     # Get the next waypoint to form a line segment
     # Handle wrap-around for circular tracks

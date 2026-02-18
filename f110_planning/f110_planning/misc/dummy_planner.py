@@ -1,3 +1,7 @@
+"""
+Dummy planner module.
+"""
+
 from typing import Any
 
 import numpy as np
@@ -5,6 +9,10 @@ import numpy as np
 from .. import Action, BasePlanner
 
 
-class DummyPlanner(BasePlanner):
+class DummyPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
+    """
+    A dummy planner that always returns a constant action.
+    """
+
     def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
         return Action(steer=np.pi / 2, speed=1)

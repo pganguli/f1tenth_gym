@@ -1,6 +1,7 @@
 """
 LQR waypoint tracker
-Implementation inspired by https://github.com/AtsushiSakai/PythonRobotics/blob/master/PathTracking/lqr_steer_control/lqr_steer_control.py
+Implementation inspired by
+https://github.com/AtsushiSakai/PythonRobotics/blob/master/PathTracking/lqr_steer_control/lqr_steer_control.py
 """
 
 from typing import Any
@@ -8,24 +9,32 @@ from typing import Any
 import numpy as np
 
 from .. import Action, BasePlanner
-from ..utils import nearest_point, pi_2_pi, solve_lqr, update_matrix
+from ..utils import (
+    calculate_tracking_errors,
+    get_vehicle_state,
+    solve_lqr,
+    update_matrix,
+)
 
 
-class LQRPlanner(BasePlanner):
+class LQRPlanner(BasePlanner):  # pylint: disable=too-many-instance-attributes
     """
     Lateral Controller using LQR
 
     Args:
         wheelbase (float, optional, default=0.33): wheelbase of the vehicle
-        waypoints (numpy.ndarray [N, 5], optional, default=None): waypoints to track, columns are [x, y, velocity, heading, curvature]
+        waypoints (numpy.ndarray [N, 5], optional, default=None): waypoints to track
+            columns are [x, y, velocity, heading, curvature]
 
     Attributes:
         wheelbase (float, optional, default=0.33): wheelbase of the vehicle
-        waypoints (numpy.ndarray [N, 5], optional, default=None): waypoints to track, columns are [x, y, velocity, heading, curvature]
+        waypoints (numpy.ndarray [N, 5], optional, default=None): waypoints to track
+            columns are [x, y, velocity, heading, curvature]
         vehicle_control_e_cog (float): lateral error of cog to ref trajectory
         vehicle_control_theta_e (float): yaw error to ref trajectory
     """
 
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
     def __init__(
         self,
         wheelbase: float = 0.33,
@@ -52,58 +61,42 @@ class LQRPlanner(BasePlanner):
         self.iterations = iterations
         self.eps = eps
 
-    def calc_control_points(
+    def calc_control_points(  # pylint: disable=too-many-locals
         self, vehicle_state: np.ndarray, waypoints: np.ndarray
     ) -> tuple[float, float, float, float, float]:
         """
-        Calculate the heading and cross-track errors and target velocity and curvature
+        Calculate errors and target velocity/curvature.
+
         Args:
             vehicle_state (numpy.ndarray [4, ]): [x, y, heading, velocity] of the vehicle
-            waypoints (numpy.ndarray [N, 5]): waypoints to track [x, y, velocity, heading, curvature]
+            waypoints (numpy.ndarray [N, 5]): waypoints to track
+                [x, y, velocity, heading, curvature]
 
         Returns:
             theta_e (float): heading error
             e_cog (float): lateral crosstrack error
             theta_raceline (float): target heading
             kappa_ref (float): target curvature
-            goal_veloctiy (float): target velocity
+            goal_velocity (float): target velocity
         """
 
-        # distance to the closest point to the front axle center
-        fx = vehicle_state[0] + self.wheelbase * np.cos(vehicle_state[2])
-        fy = vehicle_state[1] + self.wheelbase * np.sin(vehicle_state[2])
-        position_front_axle = np.array([fx, fy])
-        nearest_point_front, nearest_dist, t, target_index = nearest_point(
-            position_front_axle, self.waypoints[:, 0:2]
+        theta_e, ef, target_index, goal_velocity = calculate_tracking_errors(
+            vehicle_state, waypoints, self.wheelbase
         )
-        vec_dist_nearest_point = position_front_axle - nearest_point_front
 
-        # crosstrack error
-        front_axle_vec_rot_90 = np.array(
-            [
-                [np.cos(vehicle_state[2] - np.pi / 2.0)],
-                [np.sin(vehicle_state[2] - np.pi / 2.0)],
-            ]
-        )
-        ef = np.dot(vec_dist_nearest_point.T, front_axle_vec_rot_90)
-
-        # heading error
-        # NOTE: If your raceline is based on a different coordinate system you need to -+ pi/2 = 90 degrees
+        # target heading
         theta_raceline = waypoints[target_index, 3]
-        theta_e = pi_2_pi(theta_raceline - vehicle_state[2])
-
-        # target velocity
-        goal_veloctiy = waypoints[target_index, 2]
 
         # reference curvature
         kappa_ref = self.waypoints[target_index, 4]
 
         # saving control errors
-        self.vehicle_control_e_cog = ef[0]
+        self.vehicle_control_e_cog = ef
         self.vehicle_control_theta_e = theta_e
 
-        return theta_e, ef[0], theta_raceline, kappa_ref, goal_veloctiy
+        return theta_e, ef, theta_raceline, kappa_ref, goal_velocity
 
+    # pylint: disable=too-many-arguments, too-many-positional-arguments, too-many-locals
     def controller(
         self,
         vehicle_state: np.ndarray,
@@ -139,7 +132,7 @@ class LQRPlanner(BasePlanner):
         theta_e_old = self.vehicle_control_theta_e
 
         # Calculating current errors and reference points from reference trajectory
-        theta_e, e_cg, yaw_ref, k_ref, v_ref = self.calc_control_points(
+        theta_e, e_cg, _, k_ref, v_ref = self.calc_control_points(
             vehicle_state, waypoints
         )
 
@@ -189,14 +182,7 @@ class LQRPlanner(BasePlanner):
         matrix_r = [self.matrix_r]
 
         # Define a numpy array that includes the current vehicle state: x,y, theta, veloctiy
-        vehicle_state = np.array(
-            [
-                obs["poses_x"][ego_idx],
-                obs["poses_y"][ego_idx],
-                obs["poses_theta"][ego_idx],
-                obs["linear_vels_x"][ego_idx],
-            ]
-        )
+        vehicle_state = get_vehicle_state(obs, ego_idx)
 
         # Calculate the steering angle and the speed in the controller
         steering_angle, speed = self.controller(
