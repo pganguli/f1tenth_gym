@@ -127,8 +127,8 @@ def create_planner(planner_type: str, waypoints: np.ndarray):
     """
     if planner_type == "pure_pursuit":
         return PurePursuitPlanner(waypoints=waypoints)
-    else:
-        raise ValueError(f"Unknown planner type: {planner_type}")
+
+    raise ValueError(f"Unknown planner type: {planner_type}")
 
 
 def setup_environment(args):
@@ -157,7 +157,7 @@ def setup_environment(args):
     return env, planner, waypoints
 
 
-def collect_data(env, planner, waypoints, max_steps: int, start_pose: np.ndarray):
+def collect_data(env, planner, waypoints, max_steps: int, start_pose: np.ndarray):  # pylint: disable=too-many-locals
     """Collect simulation data by running the planner.
 
     Args:
@@ -175,7 +175,7 @@ def collect_data(env, planner, waypoints, max_steps: int, start_pose: np.ndarray
     right_dists_list = []
     heading_errors_list = []
 
-    obs, info = env.reset(options={"poses": start_pose.reshape(1, -1)})
+    obs, _ = env.reset(options={"poses": start_pose.reshape(1, -1)})
 
     step = 0
     done = False
@@ -184,7 +184,7 @@ def collect_data(env, planner, waypoints, max_steps: int, start_pose: np.ndarray
         action = planner.plan(obs, ego_idx=0)
         speed, steer = action.speed, action.steer
 
-        obs, step_reward, terminated, truncated, info = env.step(
+        obs, _, terminated, truncated, _ = env.step(
             np.array([[steer, speed]])
         )
 
@@ -278,7 +278,7 @@ def main():
     save_data(data, output_path)
 
     print(f"Saved {num_steps} samples to {output_path}")
-    print(f"Data shapes:")
+    print("Data shapes:")
     for key, value in data.items():
         print(f"  {key}: {value.shape}")
 

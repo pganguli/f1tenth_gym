@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""
+Simulation script for waypoint following with Dynamic Waypoint Planner.
+Visualizes the planner's dynamic target points and vehicle trace.
+"""
 
 import time
 from argparse import Namespace
@@ -18,7 +22,10 @@ from f110_planning.render_callbacks import (
 from f110_planning.utils import load_waypoints
 
 
-def main():
+def main():  # pylint: disable=too-many-locals
+    """
+    Main function to run the dynamic waypoint following simulation.
+    """
     conf = Namespace(
         map_path="data/maps/Example/Example",
         map_ext=".png",
@@ -60,7 +67,7 @@ def main():
     trace_renderer = create_trace_renderer(agent_idx=0)
     env.unwrapped.add_render_callback(trace_renderer)
 
-    obs, info = env.reset(
+    obs, _ = env.reset(
         options={"poses": np.array([[conf.sx, conf.sy, conf.stheta]])}
     )
     env.render()
@@ -72,7 +79,7 @@ def main():
     while not done:
         action = planner.plan(obs, ego_idx=0)
         speed, steer = action.speed, action.steer
-        obs, step_reward, terminated, truncated, info = env.step(
+        obs, step_reward, terminated, truncated, _ = env.step(
             np.array([[steer, speed]])
         )
         done = terminated or truncated

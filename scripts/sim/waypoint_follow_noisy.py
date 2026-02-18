@@ -86,8 +86,10 @@ Examples:
         "--waypoints",
         type=str,
         action="append",
-        help="Waypoint CSV file for an agent (can be specified multiple times for multiple agents). "
-        f"Default: {DEFAULT_WAYPOINTS[0]}",
+        help=(
+            "Waypoint CSV file for an agent (can be specified multiple times for multiple agents). "
+            f"Default: {DEFAULT_WAYPOINTS[0]}"
+        ),
     )
 
     parser.add_argument(
@@ -107,7 +109,10 @@ Examples:
         "--trace-colors",
         type=str,
         nargs="+",
-        help=f"Trace colors for agents (named colors or 'R,G,B' format). Default: {', '.join(DEFAULT_TRACE_COLORS[:3])}",
+        help=(
+            f"Trace colors for agents (named colors or 'R,G,B' format). "
+            f"Default: {', '.join(DEFAULT_TRACE_COLORS[:3])}"
+        ),
     )
 
     parser.add_argument(
@@ -202,8 +207,8 @@ def create_planner(planner_type: str, waypoints: np.ndarray):
     """
     if planner_type == "pure_pursuit":
         return PurePursuitPlanner(waypoints=waypoints)
-    else:
-        raise ValueError(f"Unknown planner type: {planner_type}")
+
+    raise ValueError(f"Unknown planner type: {planner_type}")
 
 
 def setup_environment(args, num_agents: int):
@@ -242,15 +247,8 @@ def setup_environment(args, num_agents: int):
 def setup_render_callbacks(
     env, num_agents: int, trace_colors: List[Tuple[int, int, int]], original_waypoints
 ):
-    """Setup render callbacks for visualization.
-
-    Args:
-        env: Gymnasium environment
-        num_agents: Number of agents
-        trace_colors: List of RGB tuples for agent traces
-        original_waypoints: Original waypoints to display as reference
-    """
-    from f110_planning.render_callbacks import (
+    """Setup render callbacks for visualization."""
+    from f110_planning.render_callbacks import (  # pylint: disable=import-outside-toplevel
         create_trace_renderer,
         create_waypoint_renderer,
     )
@@ -272,7 +270,7 @@ def setup_render_callbacks(
 
 def run_simulation(
     env, planners: List, num_agents: int, start_pose: np.ndarray, agent_labels: List[str]
-):
+):  # pylint: disable=too-many-locals
     """Run the simulation loop.
 
     Args:
@@ -288,7 +286,7 @@ def run_simulation(
     # Create initial poses for all agents (same starting position)
     poses = np.array([start_pose for _ in range(num_agents)])
 
-    obs, info = env.reset(options={"poses": poses})
+    obs, _ = env.reset(options={"poses": poses})
     env.render()
 
     start_time = time.time()
@@ -305,7 +303,7 @@ def run_simulation(
         actions = np.array(actions)
 
         # Step simulation
-        obs, step_reward, terminated, truncated, info = env.step(actions)
+        obs, step_reward, terminated, truncated, _ = env.step(actions)
         done = terminated or truncated
 
         # Print status when simulation ends
@@ -325,7 +323,7 @@ def run_simulation(
     return laptime, real_time
 
 
-def main():
+def main():  # pylint: disable=too-many-locals, too-many-branches
     """Main execution function."""
     args = parse_args()
 

@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""
+Manual control simulation script with RANSAC-based assistance.
+Allows manual driving using WASD keys while providing RANSAC-based
+midline tracking when no keys are pressed.
+"""
 
 import time
 from argparse import Namespace
@@ -8,6 +13,14 @@ import numpy as np
 import pyglet
 from f110_gym.envs.base_classes import Integrator
 from f110_planning.reactive import RansacMidlinePlanner
+from f110_planning.render_callbacks import (
+    camera_tracking,
+    create_heading_error_renderer,
+    create_ransac_walls_renderer,
+    create_trace_renderer,
+    render_lidar,
+    render_side_distances,
+)
 from f110_planning.utils import load_waypoints
 
 
@@ -22,7 +35,10 @@ def get_keys():
     return keys
 
 
-def main():
+def main():  # pylint: disable=too-many-locals
+    """
+    Main function to run manual simulation with RANSAC assistance.
+    """
     conf = Namespace(
         map_path="data/maps/Example/Example",
         map_ext=".png",
@@ -47,15 +63,6 @@ def main():
         max_laps=None,
     )
 
-    from f110_planning.render_callbacks import (
-        camera_tracking,
-        create_heading_error_renderer,
-        create_ransac_walls_renderer,
-        create_trace_renderer,
-        render_lidar,
-        render_side_distances,
-    )
-
     env.unwrapped.add_render_callback(camera_tracking)
     env.unwrapped.add_render_callback(render_lidar)
     env.unwrapped.add_render_callback(render_side_distances)
@@ -69,7 +76,7 @@ def main():
     heading_error_renderer = create_heading_error_renderer(waypoints, agent_idx=0)
     env.unwrapped.add_render_callback(heading_error_renderer)
 
-    obs, info = env.reset(
+    obs, _ = env.reset(
         options={"poses": np.array([[conf.sx, conf.sy, conf.stheta]])}
     )
     env.render()
@@ -127,7 +134,7 @@ def main():
 
         action = np.array([[ego_steer, ego_speed]])
 
-        obs, step_reward, terminated, truncated, info = env.step(action)
+        obs, step_reward, terminated, truncated, _ = env.step(action)
         done = terminated or truncated
         laptime += float(step_reward)
         env.render()

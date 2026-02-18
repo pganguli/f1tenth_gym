@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""
+Simulation script for following a raceline using Pure Pursuit.
+Visualizes the raceline, vehicle trace, and lidar data.
+"""
 
 import time
 from argparse import Namespace
@@ -6,11 +10,22 @@ from argparse import Namespace
 import gymnasium as gym
 import numpy as np
 from f110_gym.envs.base_classes import Integrator
+from f110_planning.render_callbacks import (
+    camera_tracking,
+    create_heading_error_renderer,
+    create_trace_renderer,
+    create_waypoint_renderer,
+    render_lidar,
+    render_side_distances,
+)
 from f110_planning.tracking import PurePursuitPlanner
 from f110_planning.utils import load_waypoints
 
 
-def main():
+def main():  # pylint: disable=too-many-locals
+    """
+    Main function to run the raceline following simulation.
+    """
     conf = Namespace(
         map_path="data/maps/Example/Example",
         map_ext=".png",
@@ -35,15 +50,6 @@ def main():
         max_laps=None,  # Run forever, don't terminate on lap completion
     )
 
-    from f110_planning.render_callbacks import (
-        camera_tracking,
-        create_heading_error_renderer,
-        create_trace_renderer,
-        create_waypoint_renderer,
-        render_lidar,
-        render_side_distances,
-    )
-
     env.unwrapped.add_render_callback(camera_tracking)
     env.unwrapped.add_render_callback(render_lidar)
     env.unwrapped.add_render_callback(render_side_distances)
@@ -60,7 +66,7 @@ def main():
         )
         env.unwrapped.add_render_callback(render_waypoints)
 
-    obs, info = env.reset(
+    obs, _ = env.reset(
         options={"poses": np.array([[conf.sx, conf.sy, conf.stheta]])}
     )
     env.render()
@@ -72,7 +78,7 @@ def main():
     while not done:
         action = planner.plan(obs, ego_idx=0)
         speed, steer = action.speed, action.steer
-        obs, step_reward, terminated, truncated, info = env.step(
+        obs, step_reward, terminated, truncated, _ = env.step(
             np.array([[steer, speed]])
         )
         done = terminated or truncated

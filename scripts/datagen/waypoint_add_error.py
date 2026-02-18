@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""
+Add stochastic errors to waypoint CSV files.
+Supports normal, uniform, and Laplace distributions for noise.
+"""
 
 import argparse
 import os
@@ -6,10 +10,11 @@ import os
 import numpy as np
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Add stochastic errors to a waypoint CSV file."
-    )
+def main():  # pylint: disable=too-many-locals, too-many-branches
+    """
+    Main function to parse arguments and apply noise to waypoints.
+    """
+    parser = argparse.ArgumentParser()
     parser.add_argument(
         "input_csv", type=str, help="Path to the input waypoint CSV file."
     )
@@ -53,7 +58,7 @@ def main():
 
     # Read headers
     headers = []
-    with open(args.input_csv, "r") as f:
+    with open(args.input_csv, "r", encoding="utf-8") as f:
         for _ in range(3):
             headers.append(f.readline().strip())
 
@@ -106,7 +111,7 @@ def main():
         data_noisy[:, col_idx] += noise[:, i]
 
     # Save to output CSV
-    with open(args.output_csv, "w") as f:
+    with open(args.output_csv, "w", encoding="utf-8") as f:
         for h in headers:
             f.write(h + "\n")
         np.savetxt(f, data_noisy, delimiter="; ", fmt="%.7f")
