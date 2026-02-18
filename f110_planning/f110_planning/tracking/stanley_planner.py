@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from .. import Action, BasePlanner
+from ..base import Action, BasePlanner
 from ..utils import calculate_tracking_errors, get_vehicle_state
 
 
@@ -88,7 +88,7 @@ class StanleyPlanner(BasePlanner):
 
         return delta, goal_velocity
 
-    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
+    def plan(self, obs: dict[str, Any], ego_idx: int = 0) -> Action:
         """
         Plan function
 

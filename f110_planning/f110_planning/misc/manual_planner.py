@@ -7,7 +7,7 @@ from typing import Any
 from pyglet import display as pyg_display
 from pyglet import window as pyg_window
 
-from .. import Action, BasePlanner
+from ..base import Action, BasePlanner
 
 
 class ManualPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
@@ -31,7 +31,7 @@ class ManualPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
         self.s_max = s_max
         self.v_max = v_max
 
-    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
+    def plan(self, obs: dict[str, Any], ego_idx: int = 0) -> Action:
         speed = 0.0
         steer = 0.0
         if self.keys[pyg_window.key.W]:

@@ -4,7 +4,7 @@ Flippy planner module.
 
 from typing import Any
 
-from .. import Action, BasePlanner
+from ..base import Action, BasePlanner
 
 
 class FlippyPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
@@ -24,7 +24,7 @@ class FlippyPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
         self.speed = speed
         self.counter = 0
 
-    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
+    def plan(self, obs: dict[str, Any], ego_idx: int = 0) -> Action:
         self.counter += 1
         if self.counter % self.flip_every == 0:
             self.counter = 0

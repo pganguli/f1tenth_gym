@@ -5,6 +5,7 @@ Utility functions for tracking planners.
 from typing import Any
 
 import numpy as np
+from numba import njit
 
 from .geometry_utils import pi_2_pi
 from .pure_pursuit_utils import nearest_point
@@ -31,6 +32,7 @@ def get_vehicle_state(obs: dict[str, Any], ego_idx: int) -> np.ndarray:
     )
 
 
+@njit(cache=True)
 def calculate_tracking_errors(
     vehicle_state: np.ndarray, waypoints: np.ndarray, wheelbase: float
 ) -> tuple[float, float, int, float]:

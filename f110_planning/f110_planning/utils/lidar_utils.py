@@ -58,6 +58,7 @@ def get_side_distances(scan: np.ndarray) -> tuple[float, float]:
     return left_min, right_min
 
 
+@njit(cache=True)
 def get_heading_error(
     waypoints: np.ndarray, car_position: np.ndarray, car_theta: float
 ) -> float:

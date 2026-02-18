@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from .. import Action, BasePlanner
+from ..base import Action, BasePlanner
 from ..utils import index_to_angle
 
 

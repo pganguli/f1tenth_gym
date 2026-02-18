@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 from simple_pid import PID
 
-from .. import Action, BasePlanner
+from ..base import Action, BasePlanner
 
 
 class LongestReachablePathPlanner(BasePlanner):  # pylint: disable=too-few-public-methods

@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 from sklearn.linear_model import RANSACRegressor
 
-from .. import Action, BasePlanner
+from ..base import Action, BasePlanner
 
 
 class RansacMidlinePlanner(BasePlanner):  # pylint: disable=too-few-public-methods

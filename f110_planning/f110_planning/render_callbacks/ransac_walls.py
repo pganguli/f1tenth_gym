@@ -4,8 +4,8 @@ RANSAC Wall Fitting Visualization Render Callback
 
 import numpy as np
 import pyglet
-from f110_gym.envs.rendering import EnvRenderer
 from sklearn.linear_model import RANSACRegressor
+from f110_gym.envs.rendering import EnvRenderer
 
 
 # pylint: disable=too-many-arguments, too-many-positional-arguments

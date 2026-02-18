@@ -11,7 +11,7 @@ from typing import Any
 
 import numpy as np
 
-from .. import Action, BasePlanner
+from ..base import Action, BasePlanner
 from ..utils import get_actuation, get_heading_error, get_side_distances
 
 

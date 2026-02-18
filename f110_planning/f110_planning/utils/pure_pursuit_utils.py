@@ -2,8 +2,6 @@
 Pure Pursuit utilities
 """
 
-from typing import Optional
-
 import numpy as np
 from numba import njit
 
@@ -50,13 +48,27 @@ def nearest_point(
     )
 
 
+@njit(cache=True)
+def _get_intersections(point, radius, p1, v_vec):
+    """Calculate intersection times of a circle and a line segment."""
+    a = np.dot(v_vec, v_vec)
+    b = 2.0 * np.dot(v_vec, p1 - point)
+    c = np.dot(p1, p1) + np.dot(point, point) - 2.0 * np.dot(p1, point) - radius**2
+    disc = b * b - 4 * a * c
+    if disc < 0:
+        return np.nan, np.nan
+    disc = np.sqrt(disc)
+    return (-b - disc) / (2.0 * a), (-b + disc) / (2.0 * a)
+
+
+@njit(cache=True)
 def intersect_point(
     point: np.ndarray,
     radius: float,
     trajectory: np.ndarray,
     t: float = 0.0,
     wrap: bool = False,
-) -> tuple[Optional[np.ndarray], Optional[int], Optional[float]]:
+):
     """
     Starts at beginning of trajectory, and find the first point one radius away
     from the given point along the trajectory.
@@ -68,33 +80,25 @@ def intersect_point(
     start_idx = int(t)
     trajectory = np.ascontiguousarray(trajectory)
 
-    for offset in range(len(trajectory) if wrap else len(trajectory) - 1 - start_idx):
-        idx = (start_idx + offset) % len(trajectory)
+    num_points = trajectory.shape[0]
+    total_offset = num_points if wrap else num_points - 1 - start_idx
+
+    for offset in range(total_offset):
+        idx = (start_idx + offset) % num_points
         p1 = trajectory[idx]
-        v_vec = trajectory[(idx + 1) % len(trajectory)] + 1e-6 - p1
+        v_vec = trajectory[(idx + 1) % num_points] + 1e-6 - p1
 
         t1, t2 = _get_intersections(point, radius, p1, v_vec)
-        if t1 is not None:
+        if not np.isnan(t1):
             # Check only intersections within the segment [0, 1]
             # If the first segment, only check after start_t
             lower = t % 1.0 if offset == 0 else 0.0
-            for ti in (t1, t2):
-                if ti is not None and lower <= ti <= 1.0:
-                    return p1 + ti * v_vec, idx, ti
+            if lower <= t1 <= 1.0:
+                return p1 + t1 * v_vec, idx, t1
+            if lower <= t2 <= 1.0:
+                return p1 + t2 * v_vec, idx, t2
 
     return None, None, None
-
-
-def _get_intersections(point, radius, p1, v_vec):
-    """Calculate intersection times of a circle and a line segment."""
-    a = np.dot(v_vec, v_vec)
-    b = 2.0 * np.dot(v_vec, p1 - point)
-    c = np.dot(p1, p1) + np.dot(point, point) - 2.0 * np.dot(p1, point) - radius**2
-    disc = b * b - 4 * a * c
-    if disc < 0:
-        return None, None
-    disc = np.sqrt(disc)
-    return (-b - disc) / (2.0 * a), (-b + disc) / (2.0 * a)
 
 
 @njit(cache=True)

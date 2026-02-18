@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from .. import Action, BasePlanner
+from ..base import Action, BasePlanner
 
 
 class LongestPathPlanner(BasePlanner):  # pylint: disable=too-few-public-methods

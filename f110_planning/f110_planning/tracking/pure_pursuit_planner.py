@@ -7,7 +7,7 @@ from typing import Any, Optional
 
 import numpy as np
 
-from .. import Action, BasePlanner
+from ..base import Action, BasePlanner
 from ..utils import get_actuation, get_vehicle_state, intersect_point, nearest_point
 
 
@@ -77,7 +77,7 @@ class PurePursuitPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
 
         return None
 
-    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
+    def plan(self, obs: dict[str, Any], ego_idx: int = 0) -> Action:
         """
         Planner plan function overload for Pure Pursuit, returns acutation based on current state
 

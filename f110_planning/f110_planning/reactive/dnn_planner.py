@@ -2,9 +2,11 @@
 DNN planner
 """
 
+from typing import Any
+
 import numpy as np
 
-from .. import Action, BasePlanner
+from ..base import Action, BasePlanner
 
 
 class DNNPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
@@ -19,7 +21,7 @@ class DNNPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
     def __init__(self):
         self.target_point = np.array([0.0, 0.0])
 
-    def plan(self, obs, ego_idx: int = 0) -> Action:  # pylint: disable=too-many-locals
+    def plan(self, obs: dict[str, Any], ego_idx: int = 0) -> Action:  # pylint: disable=too-many-locals
         # angle = np.arctan2(-self.target_point[0], self.target_point[1])
         lidar_model = obs["lidar_model"][ego_idx]
         w, pos, rot = lidar_model[0], lidar_model[1], lidar_model[2]

@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 
-from .. import Action, BasePlanner
+from ..base import Action, BasePlanner
 from ..utils import (
     calculate_tracking_errors,
     get_vehicle_state,
@@ -164,11 +164,7 @@ class LQRPlanner(BasePlanner):  # pylint: disable=too-many-instance-attributes
 
         return steer_angle, v_ref
 
-    def plan(
-        self,
-        obs: dict[str, Any],
-        ego_idx: int,
-    ) -> Action:
+    def plan(self, obs: dict[str, Any], ego_idx: int = 0) -> Action:
         """
         Compute lateral control command.
         """

@@ -5,7 +5,7 @@ Random planner module.
 import random
 from typing import Any
 
-from .. import Action, BasePlanner
+from ..base import Action, BasePlanner
 
 
 class RandomPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
@@ -23,7 +23,7 @@ class RandomPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
         self.v_min = v_min
         self.v_max = v_max
 
-    def plan(self, obs: dict[str, Any], ego_idx: int) -> Action:
+    def plan(self, obs: dict[str, Any], ego_idx: int = 0) -> Action:
         speed = random.uniform(self.v_min, self.v_max)
         steer = random.uniform(self.s_min, self.s_max)
         return Action(steer=steer, speed=speed)
