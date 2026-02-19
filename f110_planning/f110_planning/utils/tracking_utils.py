@@ -7,8 +7,7 @@ from typing import Any
 import numpy as np
 from numba import njit
 
-from .geometry_utils import pi_2_pi
-from .pure_pursuit_utils import nearest_point
+from . import nearest_point, pi_2_pi
 
 
 def get_vehicle_state(obs: dict[str, Any], ego_idx: int) -> np.ndarray:

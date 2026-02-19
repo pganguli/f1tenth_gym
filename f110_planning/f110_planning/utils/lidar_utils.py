@@ -5,44 +5,45 @@ LiDAR and path tracking utility functions.
 import numpy as np
 from numba import njit
 
-from .geometry_utils import pi_2_pi
-from .pure_pursuit_utils import nearest_point
+from . import (
+    LIDAR_FOV,
+    LIDAR_MIN_ANGLE,
+    nearest_point,
+    pi_2_pi,
+)
+
+
+@njit(cache=True)
+def index_to_angle(i: int, num_beams: int = 1080) -> float:
+    """
+    Convert a LiDAR scan index to its corresponding angle.
+
+    Args:
+        i: Scan index.
+        num_beams: Total number of beams in the scan.
+
+    Returns:
+        float: Angle in radians.
+    """
+    return (i / (num_beams - 1)) * LIDAR_FOV + LIDAR_MIN_ANGLE
 
 
 @njit(cache=True)
 def get_side_distances(scan: np.ndarray) -> tuple[float, float]:
     """
     Calculate the minimum distance to the left and right walls from a lidar scan.
-
-    The lidar has a FOV of 4.7 radians (approx 270 degrees) and 1080 beams.
-    Indices:
-    - 0: -fov/2 (-2.35 rad, approx -135 degrees)
-    - 540: 0 rad (forward)
-    - 1079: fov/2 (2.35 rad, approx 135 degrees)
-
-    Left side (90 degrees or pi/2 rad) is roughly at index:
-    (pi/2 - (-fov/2)) / (fov / 1079)
-    = (1.57 + 2.35) / (4.7 / 1079)
-    = 3.92 / 0.004356 = 900
-
-    Right side (-90 degrees or -pi/2 rad) is roughly at index:
-    (-pi/2 - (-fov/2)) / (fov / 1079)
-    = (-1.57 + 2.35) / (4.7 / 1079)
-    = 0.78 / 0.004356 = 179
-
-    We'll take a small window around these indices to find the minimum distance.
     """
-    fov = 4.7
     num_beams = len(scan)
-    angle_increment = fov / (num_beams - 1)
+    angle_increment = LIDAR_FOV / (num_beams - 1)
+    lidar_min_angle = -LIDAR_FOV / 2
 
     # Left side (pi/2)
     left_angle = np.pi / 2
-    left_idx = int((left_angle + fov / 2) / angle_increment)
+    left_idx = int((left_angle - lidar_min_angle) / angle_increment)
 
     # Right side (-pi/2)
     right_angle = -np.pi / 2
-    right_idx = int((right_angle + fov / 2) / angle_increment)
+    right_idx = int((right_angle - lidar_min_angle) / angle_increment)
 
     # Window size (approx 10 degrees)
     window_angle = 10 * np.pi / 180
