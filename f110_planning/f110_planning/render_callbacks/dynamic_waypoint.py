@@ -2,22 +2,16 @@
 Render callback for visualizing the dynamic waypoint
 """
 
-import numpy as np
 import pyglet
-
-from ..utils import get_heading_error, get_side_distances
 
 
 def create_dynamic_waypoint_renderer(planner, agent_idx=0):
     """
-    Factory function to create a render callback that displays the dynamic waypoint.
+    Factory to visualize the planner's internal target waypoint.
 
-    Args:
-        planner (DynamicWaypointPlanner): The planner instance whose parameters to use
-        agent_idx (int, default=0): Index of the agent to visualize
-
-    Returns:
-        callable: Render callback function
+    This renderer extracts 'last_target_point' from the planner instance, 
+    ensuring that the visual magenta point matches the exactly computed 
+    adaptive lookahead point used in the steering logic.
     """
 
     # Graphics objects (created once, updated each frame)
@@ -27,46 +21,17 @@ def create_dynamic_waypoint_renderer(planner, agent_idx=0):
     def render_callback(env_renderer):
         nonlocal waypoint_circle, connection_line
 
-        # Get observation data
-        if (
-            env_renderer.scans is None
-            or env_renderer.poses is None
-            or env_renderer.poses.shape[0] <= agent_idx
-        ):
+        # Ensure we have a point to draw
+        if planner.last_target_point is None:
             return
 
-        if not env_renderer.cars or len(env_renderer.cars) <= agent_idx:
-            return
-
-        car_theta = env_renderer.poses[agent_idx, 2]
+        # Get ego position to draw the connection line
         world_position = env_renderer.poses[agent_idx, :2]
         car_center_px = 50.0 * world_position
 
-        # Compute dynamic waypoint in world coordinates
-        lateral_error = (
-            get_side_distances(env_renderer.scans[agent_idx])[0]
-            - get_side_distances(env_renderer.scans[agent_idx])[1]
-        ) / 2.0
-        heading_error = get_heading_error(planner.waypoints, world_position, car_theta)
-
-        # Vehicle frame waypoint
-        target_y_vehicle = (
-            planner.lateral_gain * lateral_error
-            + 0.5 * heading_error * planner.lookahead_distance
-        )
-
-        # World frame waypoint converted to pixels
-        # Scale of 50 used throughout the rendering system
-        target_px = 50.0 * np.array(
-            [
-                world_position[0]
-                + planner.lookahead_distance * np.cos(car_theta)
-                - target_y_vehicle * np.sin(car_theta),
-                world_position[1]
-                + planner.lookahead_distance * np.sin(car_theta)
-                + target_y_vehicle * np.cos(car_theta),
-            ]
-        )
+        # Convert the world-frame point (saved by the planner) to pixels
+        # Scale of 50.0 used throughout the rendering system
+        target_px = 50.0 * planner.last_target_point[:2]
 
         # Create or update circle
         if waypoint_circle is None:

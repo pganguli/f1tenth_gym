@@ -31,7 +31,7 @@ def main():  # pylint: disable=too-many-locals
         map_ext=".png",
         sx=0.0,
         sy=0.0,
-        stheta=np.pi,
+        stheta=1.37079632679,
     )
 
     waypoints = load_waypoints("data/maps/F1/Oschersleben/Oschersleben_centerline.tsv")
@@ -47,7 +47,7 @@ def main():  # pylint: disable=too-many-locals
         num_agents=1,
         timestep=0.01,
         integrator=Integrator.RK4,
-        render_mode="human",
+        render_mode="human_fast",
         render_fps=60,
         max_laps=None,
     )

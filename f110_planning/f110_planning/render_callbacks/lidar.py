@@ -11,7 +11,12 @@ from f110_planning.utils import get_heading_error, get_side_distances
 
 def render_lidar(env_renderer: EnvRenderer) -> None:
     """
-    Draw LiDAR rays in Pyglet 2.x using pyglet.shapes.Line.
+    Render LIDAR point cloud rays.
+
+    Draws lines from the car center to detected obstacles. Closer hits are 
+    rendered in red, while farther ones fade to blue.
+
+    Note: The world-to-pixel scale is 50.0.
     """
     # Get latest scans from EnvRenderer
     if env_renderer.scans is None or env_renderer.poses is None:

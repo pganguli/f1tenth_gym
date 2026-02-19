@@ -10,7 +10,7 @@ from ..base import Action, BasePlanner
 from .manual_planner import ManualPlanner
 
 
-class HybridPlanner(BasePlanner):
+class HybridPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
     """
     A planner that switches between manual and autonomous control.
     """

@@ -77,10 +77,9 @@ def main():  # pylint: disable=too-many-locals
     env.render()
 
     # Initialize planners after window is created
-    p = env.unwrapped.params
     manual_planner = ManualPlanner()
     auto_planner = PurePursuitPlanner(waypoints=waypoints)
-    
+
     # Compose the planners
     planner = HybridPlanner(manual_planner, auto_planner)
 
@@ -91,11 +90,11 @@ def main():  # pylint: disable=too-many-locals
     while not done:
         # Hybrid planner handles the override logic
         action = planner.plan(obs, ego_idx=0)
-        
+
         obs, step_reward, terminated, truncated, _ = env.step(
             np.array([[action.steer, action.speed]])
         )
-        
+
         done = terminated or truncated
         laptime += float(step_reward)
         env.render()

@@ -82,57 +82,27 @@ def update_lap_counts(
 
 class F110Env(gym.Env):
     """
-    OpenAI/Gymnasium environment for F1TENTH
+    F1TENTH Gym Environment.
 
-    Env should be initialized by calling gym.make('f110_gym:f110-v0', **kwargs)
+    This environment simulates the dynamics of high-speed 1/10th scale racing cars.
+    It provides a Gymnasium-compatible interface for training and evaluating 
+    navigation and control algorithms.
 
-    Args:
-        kwargs:
-            seed (int, default=12345): seed for random state and reproducibility
-            map (str): absolute path to the yaml file of the map used for the environment
-            map_ext (str, default='png'): image extension of the map image file
-            params (dict, default={
-                'mu': 1.0489,
-                'C_Sf': 4.718,
-                'C_Sr': 5.4562,
-                'lf': 0.15875,
-                'lr': 0.17145,
-                'h': 0.074,
-                'm': 3.74,
-                'I': 0.04712,
-                's_min': -0.4189,
-                's_max': 0.4189,
-                'sv_min': -3.2,
-                'sv_max': 3.2,
-                'v_switch':7.319,
-                'a_max': 9.51,
-                'v_min':-5.0,
-                'v_max': 20.0,
-                'width': 0.31,
-                'length': 0.58}): dictionary of vehicle parameters.
-            mu: surface friction coefficient
-            C_Sf: Cornering stiffness coefficient, front
-            C_Sr: Cornering stiffness coefficient, rear
-            lf: Distance from center of gravity to front axle
-            lr: Distance from center of gravity to rear axle
-            h: Height of center of gravity
-            m: Total mass of the vehicle
-            I: Moment of inertial of the entire vehicle about the z axis
-            s_min: Minimum steering angle constraint
-            s_max: Maximum steering angle constraint
-            sv_min: Minimum steering velocity constraint
-            sv_max: Maximum steering velocity constraint
-            v_switch: Switching velocity (velocity at which the acceleration
-                      is no longer able to create wheel spin)
-            a_max: Maximum longitudinal acceleration
-            v_min: Minimum longitudinal velocity
-            v_max: Maximum longitudinal velocity
-            width: width of the vehicle in meters
-            length: length of the vehicle in meters
-            num_agents (int, default=2): number of agents in the environment
-            timestep (float, default=0.01): physics timestep
-            ego_idx (int, default=0): ego's index in list of agents
-            lidar_dist (float, default=0): vertical distance between LiDAR and backshaft
+    State includes:
+    - LIDAR scans (2D point clouds)
+    - Ego poses (x, y, theta)
+    - Linear and angular velocities
+    - Steering angles (at current step)
+    - Lap counters and times
+    - Collision status
+
+    Initialization (kwargs):
+        seed (int): Random seed.
+        map (str): Path to map yaml.
+        params (dict): Vehicle physics parameters (mu, masses, etc.).
+        num_agents (int): Number of racing agents.
+        timestep (float): Simulation physics interval.
+        ego_idx (int): Global index of the ego agent.
     """
 
     # pylint: disable=too-many-instance-attributes
@@ -556,7 +526,7 @@ class F110Env(gym.Env):
         F110Env.renderer.dispatch_events()
         F110Env.renderer.on_draw()
         F110Env.renderer.flip()
-        
+
         if self.render_mode == "human":
             current_time = time.time()
             if self.last_render_time is not None:

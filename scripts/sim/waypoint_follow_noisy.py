@@ -255,18 +255,28 @@ def setup_render_callbacks(
 ):
     """Setup render callbacks for visualization."""
     from f110_planning.render_callbacks import (  # pylint: disable=import-outside-toplevel
+        create_camera_tracking,
         create_trace_renderer,
         create_waypoint_renderer,
+        render_lidar,
+        render_side_distances,
     )
 
-    # Add trace renderer for each agent
+    # 1. Camera Tracking (follow Agent 0)
+    env.unwrapped.add_render_callback(create_camera_tracking(rotate=True))
+
+    # 2. LIDAR and Side distances (for Agent 0)
+    env.unwrapped.add_render_callback(render_lidar)
+    env.unwrapped.add_render_callback(render_side_distances)
+
+    # 3. Add trace renderer for each agent
     for i in range(num_agents):
         color = trace_colors[i] if i < len(trace_colors) else COLOR_PALETTE["white"]
         env.unwrapped.add_render_callback(
             create_trace_renderer(agent_idx=i, color=color, max_points=10000)
         )
 
-    # Add original waypoints as reference
+    # 4. Add original waypoints as reference
     if original_waypoints is not None and original_waypoints.size > 0:
         render_waypoints = create_waypoint_renderer(
             original_waypoints, color=(255, 255, 255, 64), name="waypoint_shapes_orig"

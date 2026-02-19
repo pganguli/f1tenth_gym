@@ -160,20 +160,27 @@ class RendererUI:
 
 class EnvRenderer(pyglet.window.Window):
     """
-    A window class inherited from pyglet.window.Window, handles the camera/projection interaction,
-    resizing window, and rendering the environment
+    F1TENTH Environment Renderer.
+
+    A window class inheriting from pyglet.window.Window that handles the camera,
+    coordinate projections, and object rendering for the simulation.
+
+    Features:
+    - Support for Pyglet 2.x graphics API.
+    - Ego-centric camera following with rotation capability.
+    - Automatic coordinate scaling (50.0 pixels per meter).
+    - Map and LIDAR scan visualization.
     """
 
     def __init__(self, width: int, height: int, *args: Any, **kwargs: Any) -> None:
         """
-        Class constructor
+        Initialize the renderer.
 
         Args:
-            width (int): width of the window
-            height (int): height of the window
-
-        Returns:
-            None
+            width (int): Window width in pixels.
+            height (int): Window height in pixels.
+            *args: Additional arguments passed to the pyglet Window.
+            **kwargs: Additional keyword arguments passed to the pyglet Window.
         """
         conf = Config(sample_buffers=1, samples=4, depth_size=16, double_buffer=True)
         super().__init__(
@@ -495,7 +502,7 @@ class EnvRenderer(pyglet.window.Window):
             # so we just need to translate the world by -camera.x, -camera.y
             trans_to_origin = pyglet.math.Mat4.from_translation(pyglet.math.Vec3(-cam.x, -cam.y, 0))
             rot_mat = pyglet.math.Mat4.from_rotation(cam.rotation, (0, 0, 1))
-            
+
             # Combine: Translate -> Rotate -> Ortho projection
             self.projection = ortho @ rot_mat @ trans_to_origin
         else:

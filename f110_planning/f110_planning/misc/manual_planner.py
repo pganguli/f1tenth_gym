@@ -11,21 +11,29 @@ from pyglet import window as pyg_window
 from ..base import Action, BasePlanner
 
 
-class ManualPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
+class ManualPlanner(BasePlanner):  # pylint: disable=too-few-public-methods, too-many-instance-attributes
     """
-    Example Planner
+    Physics-aware Manual Planner for keyboard control.
+
+    This planner uses WASD/Arrow keys to control the car with realistic dynamics:
+    - Acceleration and braking rates are applied over time.
+    - Steering angle changes at a fixed rate (simulating a steering wheel).
+    - States are synchronized with the simulation's timestep.
     """
 
     @staticmethod
     def _kbd_init():
+        """Initialize keyboard handlers by searching for the active pyglet window."""
         display = pyg_display.get_display()
         keys = pyg_window.key.KeyStateHandler()
         windows = display.get_windows()
         if not windows:
-            raise RuntimeError("No pyglet window found")
+            msg = "No pyglet window found. Ensure render() has been called or a window matches."
+            raise RuntimeError(msg)
         windows[0].push_handlers(keys)
         return keys
 
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
     def __init__(
         self,
         s_min: float = -0.4189,
@@ -37,6 +45,19 @@ class ManualPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
         steer_rate: float = 1.5,
         dt: float = 0.01,
     ):
+        """
+        Initialize the manual planner with physical constraints.
+
+        Args:
+            s_min (float): Minimum steering angle [rad]
+            s_max (float): Maximum steering angle [rad]
+            v_min (float): Minimum velocity [m/s]
+            v_max (float): Maximum velocity [m/s]
+            accel (float): Acceleration rate [m/s^2]
+            decel (float): Deceleration/Braking rate [m/s^2]
+            steer_rate (float): Rate of change for steering [rad/s]
+            dt (float): Simulation timestep for integration
+        """
         self.keys = ManualPlanner._kbd_init()
         self.s_min = s_min
         self.s_max = s_max
@@ -48,6 +69,14 @@ class ManualPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
         self.dt = dt
 
     def plan(self, obs: dict[str, Any], ego_idx: int = 0) -> Action:
+        """
+        Compute the next action based on current keyboard state and ego velocity.
+
+        Logic:
+        - W/S: Increment/Decrement velocity based on accel/decel.
+        - A/D: Increment/Decrement steering angle based on steer_rate.
+        - No keys: Velocity decays towards zero; steering centers.
+        """
         current_speed = obs["linear_vels_x"][ego_idx]
         current_steer = obs["steering_angles"][ego_idx]
 

@@ -33,7 +33,7 @@ def get_vehicle_state(obs: dict[str, Any], ego_idx: int) -> np.ndarray:
 
 
 @njit(cache=True)
-def calculate_tracking_errors(
+def calculate_tracking_errors(  # pylint: disable=too-many-locals
     vehicle_state: np.ndarray, waypoints: np.ndarray, wheelbase: float
 ) -> tuple[float, float, int, float]:
     """
@@ -51,7 +51,7 @@ def calculate_tracking_errors(
             theta_e (float): heading error
             ef (float): lateral crosstrack error at the front axle
             target_index (int): index of the nearest waypoint
-            goal_velocity (float): target velocity at the nearest waypoint (returns vehicle velocity as default)
+            goal_velocity (float): target velocity at the nearest waypoint
     """
     # distance to the closest point to the front axle center
     fx = vehicle_state[0] + wheelbase * np.cos(vehicle_state[2])

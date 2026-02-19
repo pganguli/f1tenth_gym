@@ -13,16 +13,18 @@ from .simulator_params import SimulatorParams
 
 class Simulator:
     """
-    Simulator class, handles the interaction and update of all vehicles in the environment
+    Simulation engine for F1TENTH.
 
-    Data Members:
-        num_agents (int): number of agents in the environment
-        time_step (float): physics time step
-        agent_poses (np.ndarray(num_agents, 3)): all poses of all agents
-        agents (list[RaceCar]): container for RaceCar objects
-        collisions (np.ndarray(num_agents, )): array of collision indicator for each agent
-        collision_idx (np.ndarray(num_agents, )): which agent is each agent in collision with
+    Handles the temporal update of all vehicles, collision detection, 
+    and sensor (LIDAR) data generation.
 
+    Attributes:
+        num_agents (int): Number of simulated cars.
+        time_step (float): Physics integration interval (dt).
+        agent_poses (np.ndarray): Array of [x, y, theta] for all agents.
+        steering_angles (np.ndarray): Current steering angle for all agents.
+        agents (list[RaceCar]): List of individual RaceCar instances.
+        collisions (np.ndarray): Boolean mask indicating if an agent has crashed.
     """
 
     def __init__(
