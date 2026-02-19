@@ -23,10 +23,11 @@ DEFAULT_MAP_EXT = ".png"
 DEFAULT_WAYPOINTS = ["data/maps/F1/Oschersleben/Oschersleben_centerline.tsv"]
 DEFAULT_START_X = 0.0
 DEFAULT_START_Y = 0.0
-DEFAULT_START_THETA = 1.37079632679
+DEFAULT_START_THETA = 2.85
 DEFAULT_RENDER_MODE = "human"
 DEFAULT_RENDER_FPS = 60
 DEFAULT_PLANNER = "pure_pursuit"
+DEFAULT_TRACE_COLORS = ["yellow", "cyan", "magenta", "red", "green", "blue"]
 
 # Predefined color palette for agent traces
 COLOR_PALETTE = {
@@ -39,8 +40,6 @@ COLOR_PALETTE = {
     "white": (255, 255, 255),
     "orange": (255, 165, 0),
 }
-
-DEFAULT_TRACE_COLORS = ["yellow", "cyan", "magenta", "red", "green", "blue"]
 
 
 def parse_args():
@@ -108,16 +107,18 @@ Examples:
         "--agent-labels",
         type=str,
         nargs="+",
-        help="Labels for agents (for terminal output). Number should match waypoint files.",
+        default=None,
+        help="Labels for agents (for terminal output). Default: Agent 1, Agent 2, ...",
     )
 
     parser.add_argument(
         "--trace-colors",
         type=str,
         nargs="+",
+        default=None,
         help=(
             f"Trace colors for agents (named colors or 'R,G,B' format). "
-            f"Default: {', '.join(DEFAULT_TRACE_COLORS[:3])}"
+            f"Default: {', '.join(DEFAULT_TRACE_COLORS)}"
         ),
     )
 

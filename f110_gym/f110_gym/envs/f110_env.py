@@ -236,7 +236,7 @@ class F110Env(gym.Env):
                 "ego_idx": spaces.Discrete(self.num_agents),
                 "scans": spaces.Box(
                     low=0.0,
-                    high=30.0,
+                    high=100.0,
                     shape=(self.num_agents, num_beams),
                     dtype=np.float64,
                 ),
@@ -247,14 +247,14 @@ class F110Env(gym.Env):
                     low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64
                 ),
                 "poses_theta": spaces.Box(
-                    low=-np.pi, high=np.pi, shape=(self.num_agents,), dtype=np.float64
+                    low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64
                 ),
                 "linear_vels_x": spaces.Box(
                     low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64
                 ),
                 "steering_angles": spaces.Box(
-                    low=self.params["s_min"],
-                    high=self.params["s_max"],
+                    low=-np.inf,
+                    high=np.inf,
                     shape=(self.num_agents,),
                     dtype=np.float64,
                 ),
