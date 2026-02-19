@@ -12,37 +12,40 @@ from .manual_planner import ManualPlanner
 
 class HybridPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
     """
-    A planner that switches between manual and autonomous control.
+    Arbitrator that delegates control based on human input.
+
+    The Hybrid Planner monitors the keyboard state. If any movement keys
+    ('W', 'A', 'S', 'D') are active, it hands over control to the human
+    operator. Otherwise, it defaults to the provided autonomous planner.
     """
 
     def __init__(self, manual_planner: ManualPlanner, auto_planner: BasePlanner):
         """
-        Initialize the HybridPlanner.
+        Initializes the hybrid control system.
 
         Args:
-            manual_planner (ManualPlanner): The manual controller.
-            auto_planner (BasePlanner): The autonomous controller (e.g., PurePursuit).
+            manual_planner: An initialized ManualPlanner instance.
+            auto_planner: Any autonomous planner implementing BasePlanner.
         """
         self.manual = manual_planner
         self.auto = auto_planner
 
     def plan(self, obs: dict[str, Any], ego_idx: int = 0) -> Action:
         """
-        Plan action by choosing between manual and autonomous input.
-
-        Args:
-            obs (dict): Observation dictionary.
-            ego_idx (int): Index of the vehicle.
-
-        Returns:
-            Action: Computed action.
+        Switches between human and autonomous control in real-time.
         """
         keys = self.manual.keys
-        if (
-            keys[pyg_window.key.W]
-            or keys[pyg_window.key.A]
-            or keys[pyg_window.key.D]
-            or keys[pyg_window.key.S]
-        ):
+        # Check if the human is providing any steering or throttle input
+        manual_override = any(
+            keys[k]
+            for k in [
+                pyg_window.key.W,
+                pyg_window.key.A,
+                pyg_window.key.S,
+                pyg_window.key.D,
+            ]
+        )
+
+        if manual_override:
             return self.manual.plan(obs, ego_idx)
         return self.auto.plan(obs, ego_idx)

@@ -8,8 +8,10 @@ from torch import nn
 
 class DualHeadWallModel(nn.Module):
     """
-    Simultaneous Left and Right wall distance prediction.
-    Shared backbone with separate heads for each wall.
+    Predicts both Left and Right wall distances from a single LiDAR scan.
+
+    This model share a common feature-extraction backbone but uses independent
+    fully-connected heads for the two wall distance predictions.
     """
 
     def __init__(self, backbone: nn.Module, feature_dim: int, hidden_dim: int = 64):
@@ -26,8 +28,10 @@ class DualHeadWallModel(nn.Module):
             nn.Linear(hidden_dim, 1),
         )
 
-    def forward(self, x):
-        """Forward pass returning [left_dist, right_dist]."""
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Processes the input scan and returns [left_dist, right_dist].
+        """
         features = self.backbone(x)
         left = self.left_head(features)
         right = self.right_head(features)
@@ -36,11 +40,17 @@ class DualHeadWallModel(nn.Module):
 
 def get_architecture(arch_id: int, task: str = "heading") -> nn.Module:
     """
-    Returns a PyTorch model based on the architecture index and task.
-    Tasks: 'heading' (1-output) or 'wall' (2-output dual head).
+    Factory function for standard F1TENTH neural network architectures.
+
+    Args:
+        arch_id: An index (1-7) identifying the specific layer configuration.
+        task: Either 'heading' (1 output) or 'wall' (2 outputs via DualHeadWallModel).
+
+    Returns:
+        An initialized PyTorch nn.Module.
     """
 
-    def get_backbone(backbone_id: int):
+    def get_backbone(backbone_id: int) -> tuple[nn.Module, int]:
         # Base families of feature extractors
         families = {
             1: (

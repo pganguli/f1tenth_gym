@@ -2,6 +2,8 @@
 Pure Pursuit utilities
 """
 
+from typing import Optional
+
 import numpy as np
 from numba import njit
 
@@ -49,8 +51,22 @@ def nearest_point(
 
 
 @njit(cache=True)
-def _get_intersections(point, radius, p1, v_vec):
-    """Calculate intersection times of a circle and a line segment."""
+def _get_intersections(
+    point: np.ndarray, radius: float, p1: np.ndarray, v_vec: np.ndarray
+) -> tuple[float, float]:
+    """
+    Calculates the normalized intersection times of a circle and a line segment.
+
+    Args:
+        point: Center of the circle (vehicle position).
+        radius: Radius of the circle (lookahead distance).
+        p1: Start point of the line segment.
+        v_vec: Direction vector of the line segment (p2 - p1).
+
+    Returns:
+        A tuple of (t1, t2) representing the intersection parameters along v_vec.
+        Returns (NaN, NaN) if no intersection occurs.
+    """
     a = np.dot(v_vec, v_vec)
     b = 2.0 * np.dot(v_vec, p1 - point)
     c = np.dot(p1, p1) + np.dot(point, point) - 2.0 * np.dot(p1, point) - radius**2
@@ -68,14 +84,23 @@ def intersect_point(
     trajectory: np.ndarray,
     t: float = 0.0,
     wrap: bool = False,
-):
+) -> tuple[Optional[np.ndarray], Optional[int], Optional[float]]:
     """
-    Starts at beginning of trajectory, and find the first point one radius away
-    from the given point along the trajectory.
+    Finds the first point on a trajectory a specific distance away from a given point.
 
-    Assumes that the first segment passes within a single radius of the point
+    This function searches forward from the provided progress parameter 't'.
+    It is used to find the lookahead point for Pure Pursuit.
 
-    http://codereview.stackexchange.com/questions/86421/line-segment-to-circle-collision-algorithm
+    Args:
+        point: Current [x, y] position of the vehicle.
+        radius: Lookahead distance.
+        trajectory: Array of [x, y, v] waypoints.
+        t: Starting progress on the trajectory (index + fractional part).
+        wrap: Whether the trajectory should wrap around (closed loop).
+
+    Returns:
+        tuple: (intersection_point, segment_index, segment_fraction)
+            Returns (None, None, None) if no intersection is found within the search range.
     """
     start_idx = int(t)
     trajectory = np.ascontiguousarray(trajectory)
@@ -88,10 +113,8 @@ def intersect_point(
         p1 = trajectory[idx]
         v_vec = trajectory[(idx + 1) % num_points] + 1e-6 - p1
 
-        t1, t2 = _get_intersections(point, radius, p1, v_vec)
+        t1, t2 = _get_intersections(point[0:2], radius, p1[0:2], v_vec[0:2])
         if not np.isnan(t1):
-            # Check only intersections within the segment [0, 1]
-            # If the first segment, only check after start_t
             lower = t % 1.0 if offset == 0 else 0.0
             if lower <= t1 <= 1.0:
                 return p1 + t1 * v_vec, idx, t1
@@ -110,7 +133,17 @@ def get_actuation(
     wheelbase: float,
 ) -> tuple[float, float]:
     """
-    Returns actuation
+    Computes steering and velocity based on a lookahead point using Pure Pursuit math.
+
+    Args:
+        pose_theta: Current orientation of the vehicle in radians.
+        lookahead_point: Target point in global [x, y, v] format.
+        position: Current [x, y] coordinates of the vehicle.
+        lookahead_distance: Euclidean distance to the lookahead point.
+        wheelbase: Physical distance between axles.
+
+    Returns:
+        tuple: (speed, steering_angle) in m/s and radians respectively.
     """
     waypoint_y = np.dot(
         np.array([np.sin(-pose_theta), np.cos(-pose_theta)]),
@@ -121,5 +154,5 @@ def get_actuation(
         return speed, 0.0
     radius = 1 / (2.0 * waypoint_y / lookahead_distance**2)
     steering_angle = np.arctan(wheelbase / radius)
-    speed = max(lookahead_point[2], 0.0) * (1.0 - np.abs(steering_angle) * 2.0 / np.pi)
-    return speed, steering_angle
+    final_speed = max(speed, 0.0) * (1.0 - np.abs(steering_angle) * 2.0 / np.pi)
+    return final_speed, steering_angle

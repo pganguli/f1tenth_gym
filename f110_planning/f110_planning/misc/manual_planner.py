@@ -13,22 +13,23 @@ from ..base import Action, BasePlanner
 
 class ManualPlanner(BasePlanner):  # pylint: disable=too-few-public-methods, too-many-instance-attributes
     """
-    Physics-aware Manual Planner for keyboard control.
+    Keyboard-based control interface with simplified vehicle dynamics.
 
-    This planner uses WASD/Arrow keys to control the car with realistic dynamics:
-    - Acceleration and braking rates are applied over time.
-    - Steering angle changes at a fixed rate (simulating a steering wheel).
-    - States are synchronized with the simulation's timestep.
+    This planner allows a human operator to control the vehicle using 'WASD' or
+    Arrow keys. It simulates realistic steering and acceleration rates
+    by integrating inputs over the simulation timestep.
     """
 
     @staticmethod
-    def _kbd_init():
-        """Initialize keyboard handlers by searching for the active pyglet window."""
+    def _kbd_init() -> Any:
+        """
+        Initializes the Pyglet keyboard handler by attaching to the active window.
+        """
         display = pyg_display.get_display()
         keys = pyg_window.key.KeyStateHandler()
         windows = display.get_windows()
         if not windows:
-            msg = "No pyglet window found. Ensure render() has been called or a window matches."
+            msg = "No active visualization window found for manual control."
             raise RuntimeError(msg)
         windows[0].push_handlers(keys)
         return keys
@@ -46,17 +47,17 @@ class ManualPlanner(BasePlanner):  # pylint: disable=too-few-public-methods, too
         dt: float = 0.01,
     ):
         """
-        Initialize the manual planner with physical constraints.
+        Sets the physical response limits for manual control.
 
         Args:
-            s_min (float): Minimum steering angle [rad]
-            s_max (float): Maximum steering angle [rad]
-            v_min (float): Minimum velocity [m/s]
-            v_max (float): Maximum velocity [m/s]
-            accel (float): Acceleration rate [m/s^2]
-            decel (float): Deceleration/Braking rate [m/s^2]
-            steer_rate (float): Rate of change for steering [rad/s]
-            dt (float): Simulation timestep for integration
+            s_min: Hard limit for left steering [rad].
+            s_max: Hard limit for right steering [rad].
+            v_min: Minimum velocity (including reverse) [m/s].
+            v_max: Maximum velocity [m/s].
+            accel: Rate of velocity increase when 'W' is held [m/s^2].
+            decel: Braking rate when 'S' is held [m/s^2].
+            steer_rate: Speed of the steering rack [rad/s].
+            dt: Effective integration period (should match env timestep).
         """
         self.keys = ManualPlanner._kbd_init()
         self.s_min = s_min
@@ -70,12 +71,7 @@ class ManualPlanner(BasePlanner):  # pylint: disable=too-few-public-methods, too
 
     def plan(self, obs: dict[str, Any], ego_idx: int = 0) -> Action:
         """
-        Compute the next action based on current keyboard state and ego velocity.
-
-        Logic:
-        - W/S: Increment/Decrement velocity based on accel/decel.
-        - A/D: Increment/Decrement steering angle based on steer_rate.
-        - No keys: Velocity decays towards zero; steering centers.
+        Polls the keyboard state and integrates the vehicle control command.
         """
         current_speed = obs["linear_vels_x"][ego_idx]
         current_steer = obs["steering_angles"][ego_idx]
@@ -93,7 +89,10 @@ class ManualPlanner(BasePlanner):  # pylint: disable=too-few-public-methods, too
                 speed = 0.0
             else:
                 # Slight friction/coasting deceleration
-                speed = current_speed - np.sign(current_speed) * (self.accel / 4.0) * self.dt
+                speed = (
+                    current_speed
+                    - np.sign(current_speed) * (self.accel / 4.0) * self.dt
+                )
 
         # Steering control (Wheel)
         if self.keys[pyg_window.key.A]:
@@ -107,6 +106,8 @@ class ManualPlanner(BasePlanner):  # pylint: disable=too-few-public-methods, too
             if abs(current_steer) < self.steer_rate * self.dt:
                 steer = 0.0
             else:
-                steer = current_steer - np.sign(current_steer) * self.steer_rate * self.dt
+                steer = (
+                    current_steer - np.sign(current_steer) * self.steer_rate * self.dt
+                )
 
         return Action(steer=steer, speed=speed)

@@ -2,8 +2,8 @@
 Bubble planner for obstacle avoidance.
 
 Logic: Local Repulsion.
-Mechanism: This planner identifies the single closest obstacle within a defined 
-'safety_radius' from the LiDAR scan. It then calculates a steering angle 
+Mechanism: This planner identifies the single closest obstacle within a defined
+'safety_radius' from the LiDAR scan. It then calculates a steering angle
 that points directly away from that obstacle (opposite direction).
 """
 

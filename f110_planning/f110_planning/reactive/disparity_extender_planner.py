@@ -2,9 +2,9 @@
 Disparity extender planner module.
 
 Logic: Obstacle Inflation.
-Mechanism: 
+Mechanism:
 1. Searches for 'disparities'—sudden jumps in distance between adjacent LiDAR beams.
-2. 'Blooms' or extends the nearer side of that disparity by the car's width to 
+2. 'Blooms' or extends the nearer side of that disparity by the car's width to
    mask out 'corners' where the car would otherwise clip its side.
 3. Picks the furthest remaining point in the masked scan to steer towards.
 """
@@ -131,7 +131,9 @@ class DisparityExtenderPlanner(BasePlanner):  # pylint: disable=too-many-instanc
     def get_index(self, angle: float) -> int:
         """Returns the index in the LIDAR samples corresponding to the given
         angle in radians."""
-        return int(((angle - LIDAR_MIN_ANGLE) / LIDAR_FOV) * (len(self.lidar_distances) - 1))
+        return int(
+            ((angle - LIDAR_MIN_ANGLE) / LIDAR_FOV) * (len(self.lidar_distances) - 1)
+        )
 
     def plan(self, obs: dict[str, Any], ego_idx: int = 0) -> Action:
         """Processes LIDAR data and returns a steering angle and velocity."""
@@ -140,7 +142,9 @@ class DisparityExtenderPlanner(BasePlanner):  # pylint: disable=too-many-instanc
         self.samples_per_radian = num_beams / LIDAR_FOV
 
         # 1. Extend disparities
-        disparities = find_disparities_jit(self.lidar_distances, self.disparity_threshold)
+        disparities = find_disparities_jit(
+            self.lidar_distances, self.disparity_threshold
+        )
         self.masked_disparities, _ = extend_disparities_jit(
             self.lidar_distances,
             disparities,

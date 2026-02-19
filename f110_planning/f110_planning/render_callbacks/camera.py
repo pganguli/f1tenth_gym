@@ -3,6 +3,7 @@ Camera tracking render callback for following the ego vehicle.
 """
 
 from typing import Callable
+
 import numpy as np
 from f110_gym.envs.rendering import EnvRenderer
 
@@ -11,8 +12,8 @@ def create_camera_tracking(rotate: bool = True) -> Callable[[EnvRenderer], None]
     """
     Factory for an ego-centric camera tracking callback.
 
-    The camera will center on the ego vehicle (index 0). If rotation is enabled, 
-    the world will rotate around the car such that the car's heading is 
+    The camera will center on the ego vehicle (index 0). If rotation is enabled,
+    the world will rotate around the car such that the car's heading is
     always directed "Up" (North) on the screen.
 
     Scaling: Uses the standard 50.0 pixels-per-meter scale.

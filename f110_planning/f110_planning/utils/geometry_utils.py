@@ -9,13 +9,13 @@ from numba import njit
 @njit(cache=True)
 def pi_2_pi(angle: float) -> float:
     """
-    Normalize an angle to the range [-pi, pi].
+    Normalizes an angle to the range [-pi, pi].
 
     Args:
-        angle: Angle in radians.
+        angle: The input angle in radians.
 
     Returns:
-        float: Normalized angle.
+        The normalized angle in radians.
     """
     if angle > np.pi:
         return angle - 2.0 * np.pi

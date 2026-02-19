@@ -4,7 +4,7 @@ Implementation inspired by
 https://github.com/AtsushiSakai/PythonRobotics/blob/master/PathTracking/lqr_steer_control/lqr_steer_control.py
 """
 
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 
@@ -19,26 +19,18 @@ from ..utils import (
 
 class LQRPlanner(BasePlanner):  # pylint: disable=too-many-instance-attributes
     """
-    Lateral Controller using LQR
+    Lateral Controller using Linear Quadratic Regulator (LQR).
 
-    Args:
-        wheelbase (float, optional, default=0.33): wheelbase of the vehicle
-        waypoints (numpy.ndarray [N, 5], optional, default=None): waypoints to track
-            columns are [x, y, velocity, heading, curvature]
-
-    Attributes:
-        wheelbase (float, optional, default=0.33): wheelbase of the vehicle
-        waypoints (numpy.ndarray [N, 5], optional, default=None): waypoints to track
-            columns are [x, y, velocity, heading, curvature]
-        vehicle_control_e_cog (float): lateral error of cog to ref trajectory
-        vehicle_control_theta_e (float): yaw error to ref trajectory
+    This planner linearizes the vehicle dynamics around a reference path and
+    solves for an optimal gain matrix K that minimizes a cost function
+    representing both tracking error and control effort.
     """
 
     # pylint: disable=too-many-arguments, too-many-positional-arguments
     def __init__(
         self,
         wheelbase: float = 0.33,
-        waypoints: np.ndarray = np.array([]),
+        waypoints: Optional[np.ndarray] = None,
         max_speed: float = 5.0,
         timestep: float = 0.01,
         matrix_q_1: float = 0.999,
@@ -49,11 +41,24 @@ class LQRPlanner(BasePlanner):  # pylint: disable=too-many-instance-attributes
         iterations: int = 50,
         eps: float = 0.001,
     ):
+        """
+        Initializes the LQR planner with control weights and system parameters.
+
+        Args:
+            wheelbase: Front-to-rear axle distance.
+            waypoints: Loaded path coordinates [N, 2+].
+            max_speed: Target longitudinal velocity.
+            timestep: Integration step for discretization.
+            matrix_q_1..4: Diagonal elements of the state cost matrix Q.
+            matrix_r: Element of the input cost matrix R.
+            iterations: Maximum iterations for the DARE solver.
+            eps: Convergence tolerance for the solver.
+        """
         self.wheelbase = wheelbase
-        self.waypoints = waypoints
+        self.waypoints = waypoints if waypoints is not None else np.array([])
         self.max_speed = max_speed
-        self.vehicle_control_e_cog = 0  # e_cg: lateral error of CoG to ref trajectory
-        self.vehicle_control_theta_e = 0.0  # theta_e: yaw error to ref trajectory
+        self.vehicle_control_e_cog = 0.0
+        self.vehicle_control_theta_e = 0.0
         self.timestep = timestep
         self.matrix_q_1 = matrix_q_1
         self.matrix_q_2 = matrix_q_2
@@ -63,112 +68,61 @@ class LQRPlanner(BasePlanner):  # pylint: disable=too-many-instance-attributes
         self.iterations = iterations
         self.eps = eps
 
-    def calc_control_points(  # pylint: disable=too-many-locals
+    def calc_control_points(
         self, vehicle_state: np.ndarray, waypoints: np.ndarray
     ) -> tuple[float, float, float, float, float]:
         """
-        Calculate errors and target velocity/curvature.
-
-        Args:
-            vehicle_state (numpy.ndarray [4, ]): [x, y, heading, velocity] of the vehicle
-            waypoints (numpy.ndarray [N, 5]): waypoints to track
-                [x, y, velocity, heading, curvature]
-
-        Returns:
-            theta_e (float): heading error
-            e_cog (float): lateral crosstrack error
-            theta_raceline (float): target heading
-            kappa_ref (float): target curvature
-            goal_velocity (float): target velocity
+        Calculates the current state errors and reference curvature.
         """
 
         theta_e, ef, target_index, _ = calculate_tracking_errors(
             vehicle_state, waypoints, self.wheelbase
         )
 
-        # target heading estimation
         next_index = (target_index + 1) % len(waypoints)
         dx = waypoints[next_index, 0] - waypoints[target_index, 0]
         dy = waypoints[next_index, 1] - waypoints[target_index, 1]
         theta_raceline = np.arctan2(dy, dx)
 
-        # reference curvature (default to 0 if not provided)
         kappa_ref = 0.0
-
-        # target velocity
         goal_velocity = self.max_speed
 
-        # saving control errors
         self.vehicle_control_e_cog = ef
         self.vehicle_control_theta_e = theta_e
 
         return theta_e, ef, theta_raceline, kappa_ref, goal_velocity
 
-    # pylint: disable=too-many-arguments, too-many-positional-arguments, too-many-locals
-    def controller(
-        self,
-        vehicle_state: np.ndarray,
-        waypoints: np.ndarray,
-        ts: float,
-        matrix_q: list[float],
-        matrix_r: list[float],
-        max_iteration: int,
-        eps: float,
-    ) -> tuple[float, float]:
+    def controller(self, vehicle_state: np.ndarray) -> tuple[float, float]:
         """
-        Compute lateral control command.
+        Optimal lateral control calculation.
 
-        Args:
-            vehicle_state (numpy.ndarray [4, ]): [x, y, heading, velocity] of the vehicle
-            waypoints (numpy.ndarray [N, 5]): waypoints to track
-            ts (float): discretization time step
-            matrix_q ([float], len=4): weights on the states
-            matrix_r ([float], len=1): weights on control input
-            max_iteration (int): maximum iteration for solving
-            eps (float): error tolerance for solving
-
-        Returns:
-            steer_angle (float): desired steering angle
-            v_ref (float): desired velocity
+        This discrete-time LQR implementation computes steering based on a
+        4-state error vector: [crosstrack, lateral_velocity, heading, heading_rate].
         """
+        # Construct cost matrices from class attributes
+        matrix_q = np.diag(
+            [self.matrix_q_1, self.matrix_q_2, self.matrix_q_3, self.matrix_q_4]
+        )
+        matrix_r = np.diag([self.matrix_r])
 
-        # size of controlled states
-        state_size = 4
-
-        # Saving lateral error and heading error from previous timestep
-        e_cog_old = self.vehicle_control_e_cog
-        theta_e_old = self.vehicle_control_theta_e
-
-        # Calculating current errors and reference points from reference trajectory
+        # Get tracking errors and reference values
         theta_e, e_cg, _, k_ref, v_ref = self.calc_control_points(
-            vehicle_state, waypoints
+            vehicle_state, self.waypoints
         )
 
-        # Update the calculation matrix based on the current vehicle state
-        matrix_ad_, matrix_bd_ = update_matrix(
-            vehicle_state, state_size, ts, self.wheelbase
-        )
+        # Linearize vehicle dynamics and solve the Riccati equation
+        ad_mat, bd_mat = update_matrix(vehicle_state, 4, self.timestep, self.wheelbase)
+        k_mat = solve_lqr(ad_mat, bd_mat, matrix_q, matrix_r, self.eps, self.iterations)
 
-        matrix_state_ = np.zeros((state_size, 1))
-        matrix_r_ = np.diag(matrix_r)
-        matrix_q_ = np.diag(matrix_q)
+        # Build current state vector for feedback
+        matrix_state = np.zeros((4, 1))
+        matrix_state[0, 0] = e_cg
+        matrix_state[1, 0] = (e_cg - self.vehicle_control_e_cog) / self.timestep
+        matrix_state[2, 0] = theta_e
+        matrix_state[3, 0] = (theta_e - self.vehicle_control_theta_e) / self.timestep
 
-        matrix_k_ = solve_lqr(
-            matrix_ad_, matrix_bd_, matrix_q_, matrix_r_, eps, max_iteration
-        )
-
-        matrix_state_[0][0] = e_cg
-        matrix_state_[1][0] = (e_cg - e_cog_old) / ts
-        matrix_state_[2][0] = theta_e
-        matrix_state_[3][0] = (theta_e - theta_e_old) / ts
-
-        steer_angle_feedback = (matrix_k_ @ matrix_state_)[0][0]
-
-        # Compute feed forward control term to decrease the steady error.
-        steer_angle_feedforward = k_ref * self.wheelbase
-
-        # Calculate final steering angle in [rad]
-        steer_angle = steer_angle_feedback + steer_angle_feedforward
+        # LQR control law: steering = feedback + feedforward
+        steer_angle = (k_mat @ matrix_state)[0, 0] + (k_ref * self.wheelbase)
 
         return steer_angle, v_ref
 
@@ -176,27 +130,13 @@ class LQRPlanner(BasePlanner):  # pylint: disable=too-many-instance-attributes
         """
         Compute lateral control command.
         """
-        if self.waypoints is None:
+        if self.waypoints is None or len(self.waypoints) == 0:
             raise ValueError(
                 "Please set waypoints to track during planner instantiation or when calling plan()"
             )
 
-        # Define LQR Matrix and Parameter
-        matrix_q = [self.matrix_q_1, self.matrix_q_2, self.matrix_q_3, self.matrix_q_4]
-        matrix_r = [self.matrix_r]
-
-        # Define a numpy array that includes the current vehicle state: x,y, theta, veloctiy
+        # Execute LQR control law
         vehicle_state = get_vehicle_state(obs, ego_idx)
-
-        # Calculate the steering angle and the speed in the controller
-        steering_angle, speed = self.controller(
-            vehicle_state,
-            self.waypoints,
-            self.timestep,
-            matrix_q,
-            matrix_r,
-            self.iterations,
-            self.eps,
-        )
+        steering_angle, speed = self.controller(vehicle_state)
 
         return Action(steer=steering_angle, speed=speed)

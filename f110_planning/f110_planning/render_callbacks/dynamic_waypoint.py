@@ -9,8 +9,8 @@ def create_dynamic_waypoint_renderer(planner, agent_idx=0):
     """
     Factory to visualize the planner's internal target waypoint.
 
-    This renderer extracts 'last_target_point' from the planner instance, 
-    ensuring that the visual magenta point matches the exactly computed 
+    This renderer extracts 'last_target_point' from the planner instance,
+    ensuring that the visual magenta point matches the exactly computed
     adaptive lookahead point used in the steering logic.
     """
 

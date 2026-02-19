@@ -13,7 +13,7 @@ def render_lidar(env_renderer: EnvRenderer) -> None:
     """
     Render LIDAR point cloud rays.
 
-    Draws lines from the car center to detected obstacles. Closer hits are 
+    Draws lines from the car center to detected obstacles. Closer hits are
     rendered in red, while farther ones fade to blue.
 
     Note: The world-to-pixel scale is 50.0.

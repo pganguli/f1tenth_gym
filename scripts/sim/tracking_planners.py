@@ -6,11 +6,9 @@ Supports single-agent hybrid control (default) and multi-agent waypoint followin
 
 import argparse
 import time
-from typing import List, Tuple
+from typing import Any
 
-import gymnasium as gym
 import numpy as np
-from f110_gym.envs.base_classes import Integrator
 from f110_planning.misc import HybridPlanner, ManualPlanner
 from f110_planning.render_callbacks import (
     create_camera_tracking,
@@ -21,17 +19,7 @@ from f110_planning.render_callbacks import (
     render_side_distances,
 )
 from f110_planning.tracking import PurePursuitPlanner
-from f110_planning.utils import load_waypoints
-
-# Default configuration
-DEFAULT_MAP = "data/maps/F1/Oschersleben/Oschersleben_map"
-DEFAULT_MAP_EXT = ".png"
-DEFAULT_WAYPOINTS = "data/maps/F1/Oschersleben/Oschersleben_centerline.tsv"
-DEFAULT_START_X = 0.0
-DEFAULT_START_Y = 0.0
-DEFAULT_START_THETA = 2.85
-DEFAULT_RENDER_MODE = "human_fast"
-DEFAULT_RENDER_FPS = 60
+from f110_planning.utils import add_common_sim_args, load_waypoints, setup_env
 
 # Predefined color palette for agent traces
 COLOR_PALETTE = {
@@ -48,201 +36,147 @@ TRACE_COLORS = ["yellow", "cyan", "magenta", "red", "green", "blue"]
 
 
 def parse_args():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Unified waypoint tracking simulation."
-    )
+    """
+    Registers command-line arguments for path-tracking simulation experiments.
+    """
+    parser = argparse.ArgumentParser(description="Multi-Agent Pure Pursuit Simulation")
 
-    parser.add_argument(
-        "--waypoints",
-        type=str,
-        nargs="+",
-        default=[DEFAULT_WAYPOINTS],
-        help=f"One or more waypoint files. Each specifies an agent. Default: {DEFAULT_WAYPOINTS}",
-    )
+    add_common_sim_args(parser, multi_waypoint=True)
 
     parser.add_argument(
         "--hybrid",
         action="store_true",
         default=True,
-        help="Enable hybrid control (Manual override) for Agent 0. Default: True",
+        help="Enables manual override (WASD keys) for the primary agent.",
     )
     parser.add_argument(
         "--no-hybrid",
         action="store_false",
         dest="hybrid",
-        help="Disable hybrid control for Agent 0.",
-    )
-
-    parser.add_argument(
-        "--map",
-        type=str,
-        default=DEFAULT_MAP,
-        help=f"Path to map file. Default: {DEFAULT_MAP}",
-    )
-
-    parser.add_argument(
-        "--map-ext",
-        type=str,
-        default=DEFAULT_MAP_EXT,
-        help=f"Map file extension. Default: {DEFAULT_MAP_EXT}",
-    )
-
-    parser.add_argument(
-        "--start-x",
-        type=float,
-        default=DEFAULT_START_X,
-        help=f"Starting X position. Default: {DEFAULT_START_X}",
-    )
-
-    parser.add_argument(
-        "--start-y",
-        type=float,
-        default=DEFAULT_START_Y,
-        help=f"Starting Y position. Default: {DEFAULT_START_Y}",
-    )
-
-    parser.add_argument(
-        "--start-theta",
-        type=float,
-        default=DEFAULT_START_THETA,
-        help=f"Starting orientation (radians). Default: {DEFAULT_START_THETA}",
-    )
-
-    parser.add_argument(
-        "--render-mode",
-        type=str,
-        choices=["human", "human_fast", "None"],
-        default=DEFAULT_RENDER_MODE,
-        help=f"Render mode. Default: {DEFAULT_RENDER_MODE}",
-    )
-
-    parser.add_argument(
-        "--render-fps",
-        type=int,
-        default=DEFAULT_RENDER_FPS,
-        help=f"Render FPS. Default: {DEFAULT_RENDER_FPS}",
+        help="Disables manual override; agent proceeds fully autonomously.",
     )
 
     return parser.parse_args()
 
 
-def main():  # pylint: disable=too-many-locals, too-many-statements
-    """
-    Main function to run the waypoint tracking simulation.
-    """
-    args = parse_args()
-
-    # Convert "None" string to None object
-    render_mode = None if args.render_mode == "None" else args.render_mode
-
-    # Load waypoints for all agents
-    agent_waypoints = [load_waypoints(w) for w in args.waypoints]
-    num_agents = len(agent_waypoints)
-
-    # Hybrid control requires a window, so disable it if headless
-    enable_hybrid = args.hybrid and render_mode is not None
-
-    # Initialize environment
-    env = gym.make(
-        "f110_gym:f110-v0",
-        map=args.map,
-        map_ext=args.map_ext,
-        num_agents=num_agents,
-        timestep=0.01,
-        integrator=Integrator.RK4,
-        render_mode=render_mode,
-        render_fps=args.render_fps,
-        max_laps=None,
-    )
-
-    # Reset environment once to initialize window if needed
-    poses = np.zeros((num_agents, 3))
-    for i in range(num_agents):
-        poses[i] = [args.start_x, args.start_y, args.start_theta]
-    
-    obs, _ = env.reset(options={"poses": poses})
-    if render_mode:
-        env.render()
-
-    # Setup planners (now that window is potentially ready)
+def _init_planners(
+    num_agents: int,
+    agent_waypoints: list[np.ndarray],
+    enable_hybrid: bool
+) -> list[Any]:
+    """Initializes a list of planners for all agents."""
     planners = []
     for i in range(num_agents):
-        # Base autonomous planner
         auto_planner = PurePursuitPlanner(waypoints=agent_waypoints[i])
-        
-        # If hybrid is enabled for Agent 0, wrap it
+
         if i == 0 and enable_hybrid:
             manual_planner = ManualPlanner()
             planner = HybridPlanner(manual_planner, auto_planner)
         else:
             planner = auto_planner
-            
+
         planners.append(planner)
+    return planners
 
-    # Add render callbacks
-    if render_mode:
-        env.unwrapped.add_render_callback(create_camera_tracking(rotate=True))
-        env.unwrapped.add_render_callback(render_lidar)
-        env.unwrapped.add_render_callback(render_side_distances)
-        
-        for i in range(num_agents):
-            color_name = TRACE_COLORS[i % len(TRACE_COLORS)]
-            color = COLOR_PALETTE[color_name]
-            
-            # Trace for each agent
-            env.unwrapped.add_render_callback(
-                create_trace_renderer(agent_idx=i, color=color, max_points=10000)
-            )
-            
-            # Render waypoints for each agent (if not too many)
-            if num_agents <= 3 and agent_waypoints[i].size > 0:
-                wp_color = color + (64,) # Add transparency
-                env.unwrapped.add_render_callback(
-                    create_waypoint_renderer(agent_waypoints[i], color=wp_color)
-                )
 
-        if agent_waypoints[0].size > 0:
-            env.unwrapped.add_render_callback(
-                create_heading_error_renderer(agent_waypoints[0], agent_idx=0)
-            )
+def _setup_rendering(
+    env: Any,
+    num_agents: int,
+    agent_waypoints: list[np.ndarray]
+) -> None:
+    """Configures multi-agent rendering callbacks."""
+    env.unwrapped.add_render_callback(create_camera_tracking(rotate=True))
+    env.unwrapped.add_render_callback(render_lidar)
+    env.unwrapped.add_render_callback(render_side_distances)
 
-    print(f"Starting simulation with {num_agents} agent(s)...")
+    for i in range(num_agents):
+        color_name = TRACE_COLORS[i % len(TRACE_COLORS)]
+        color_rgb = COLOR_PALETTE[color_name]
+
+        # Draw the static reference path
+        env.unwrapped.add_render_callback(
+            create_waypoint_renderer(agent_waypoints[i])
+        )
+        # Trace the actual driven path
+        env.unwrapped.add_render_callback(
+            create_trace_renderer(agent_idx=i, color=color_rgb)
+        )
+        # Visualize the heading deviation
+        env.unwrapped.add_render_callback(
+            create_heading_error_renderer(agent_waypoints[i], i)
+        )
+
+
+def _run_tracking_sim(
+    env: Any, obs: dict, planners: list, num_agents: int, r_mode: str | None
+) -> np.ndarray:
+    """Executes the multi-agent tracking loop."""
     laptimes = np.zeros(num_agents)
-    start_time = time.time()
-
     done = False
+
     try:
         while not done:
             actions = []
             for i in range(num_agents):
-                # Plan for each agent
                 action = planners[i].plan(obs, ego_idx=i)
                 actions.append([action.steer, action.speed])
-            
-            obs, rewards, terminated, truncated, _ = env.step(np.array(actions))
-            
-            # termination is usually per-agent in f110_gym, but simplified here
-            # to end when any agent (or specifically agent 0) is done if needed.
-            # terminated/truncated are boolean arrays in multi-agent f110_gym
-            if isinstance(terminated, np.ndarray):
-                done = terminated.any() or truncated.any()
+
+            obs, rewards, term, trunc, _ = env.step(np.array(actions))
+
+            if isinstance(term, np.ndarray):
+                done = (term.any() or trunc.any())
                 laptimes += rewards
             else:
-                done = terminated or truncated
+                done = (term or trunc)
                 laptimes[0] += rewards
 
-            if render_mode:
+            if r_mode:
                 env.render()
     except KeyboardInterrupt:
-        print("\nSimulation interrupted.")
+        print("\nSimulation halted.")
 
-    total_real_time = time.time() - start_time
-    print(f"\nSimulation Finished:")
+    return laptimes
+
+
+def _print_results(num_agents: int, laptimes: np.ndarray, total_time: float) -> None:
+    """Displays simulation performance and laptime results."""
+    print("\n--- Tracking Results ---")
+    print(f"Agents:            {num_agents}")
     for i in range(num_agents):
-        print(f"Agent {i} Laptime: {laptimes[i]:.2f}s")
-    print(f"Real Time: {total_real_time:.2f}s")
+        print(f"  Agent {i} Laptime: {laptimes[i]:.2f}s")
 
+    if total_time > 0:
+        print(f"RT-Factor (Avg):    {laptimes[0] / total_time:.2f}x")
+
+
+def main() -> None:
+    """
+    Entry point for running multi-agent waypoint tracking simulation.
+    """
+    args = parse_args()
+    r_mode = None if args.render_mode == "None" else args.render_mode
+    agent_waypoints = [load_waypoints(w) for w in args.waypoints]
+    num_agents = len(agent_waypoints)
+
+    env = setup_env(args, r_mode)
+
+    # Initial reset and rendering setup
+    poses = np.zeros((num_agents, 3))
+    for i in range(num_agents):
+        poses[i] = [args.start_x, args.start_y + (i * 0.4), args.start_theta]
+
+    obs, _ = env.reset(options={"poses": poses})
+    if r_mode:
+        _setup_rendering(env, num_agents, agent_waypoints)
+        env.render()
+
+    planners = _init_planners(num_agents, agent_waypoints, args.hybrid and r_mode is not None)
+
+    print(f"Starting {num_agents}-agent tracking simulation...")
+    t_start = time.time()
+    laptimes = _run_tracking_sim(env, obs, planners, num_agents, r_mode)
+
+    _print_results(num_agents, laptimes, time.time() - t_start)
     env.close()
 
 

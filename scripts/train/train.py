@@ -7,7 +7,7 @@ Supports YAML configuration, advanced dataloading, and automatic tuning.
 import argparse
 import warnings
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import lightning as L
 import numpy as np
@@ -33,10 +33,20 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="lightning")
 class LidarDataset(Dataset):
     """
     Advanced LiDAR Dataset with memory-resident caching.
+
+    Attributes:
+        x (np.ndarray): Normalized LiDAR scans.
+        y (np.ndarray): Target values (e.g., heading, path distances).
     """
 
     def __init__(self, data_path: str, target_col: str):
-        # Caching: Load once into memory
+        """
+        Initializes the dataset.
+
+        Args:
+            data_path: Path to the .npz dataset file.
+            target_col: Name of the column(s) to use as regression targets.
+        """
         data = np.load(data_path)
         self.x = data["scans"].astype(np.float32)
 
@@ -47,38 +57,56 @@ class LidarDataset(Dataset):
         else:
             self.y = data[target_col].astype(np.float32).reshape(-1, 1)
 
-        # Consistent normalization
+        # Normalize LiDAR ranges (typically [0, 10]m -> [0, 1])
         self.x = np.clip(self.x / 10.0, 0, 1)
 
-    def __len__(self):
+    def __len__(self) -> int:
+        """Returns the total number of samples."""
         return len(self.y)
 
-    def __getitem__(self, idx: int):
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Retrieves a single sample.
+
+        Args:
+            idx: Index of the sample to retrieve.
+
+        Returns:
+            A tuple of (lidar_tensor, target_tensor).
+        """
         return torch.from_numpy(self.x[idx]).unsqueeze(0), torch.from_numpy(self.y[idx])
 
 
 class LidarDataModule(L.LightningDataModule):
     """
-    Lightning DataModule with multi-worker, prefetching, and pinning.
+    Lightning DataModule managing dataset splitting and data loader creation.
     """
 
     def __init__(self, config: dict):
+        """
+        Initializes the data module.
+
+        Args:
+            config: Configuration dictionary containing data parameters.
+        """
         super().__init__()
         self.cfg = config["data"]
-        # Attributes reduced to stay below limit
         self.train_path = self.cfg["train_path"]
         self.target_col = self.cfg["target_col"]
         self.batch_size = self.cfg["batch_size"]
 
-        # Initializing datasets to None to satisfy W0201
-        self.train_dataset = None
-        self.val_dataset = None
+        self.train_dataset: Optional[Dataset] = None
+        self.val_dataset: Optional[Dataset] = None
 
-    def setup(self, stage: Optional[str] = None):
-        """Setup datasets for training and validation."""
+    def setup(self, stage: Optional[str] = None) -> None:
+        """
+        Loads and splits the dataset.
+
+        Args:
+            stage: Current stage (fit, test, etc.).
+        """
         full_dataset = LidarDataset(self.train_path, self.target_col)
 
-        # Dataset Sharding
         val_split = self.cfg.get("val_split", 0.2)
         val_size = int(len(full_dataset) * val_split)
         train_size = len(full_dataset) - val_size
@@ -86,12 +114,11 @@ class LidarDataModule(L.LightningDataModule):
             full_dataset, [train_size, val_size]
         )
 
-    def train_dataloader(self):
-        """Return the training dataloader."""
+    def train_dataloader(self) -> DataLoader:
+        """Creates the training data loader."""
         if self.train_dataset is None:
             raise ValueError("train_dataset is None. Call setup() first.")
         num_workers = self.cfg.get("num_workers", 4)
-        # Use pin_memory only if GPU is available to avoid warnings
         pin_memory = self.cfg.get("pin_memory", True) and torch.cuda.is_available()
         return DataLoader(
             self.train_dataset,
@@ -99,12 +126,14 @@ class LidarDataModule(L.LightningDataModule):
             shuffle=True,
             num_workers=num_workers,
             pin_memory=pin_memory,
-            prefetch_factor=self.cfg.get("prefetch_factor", 2) if num_workers > 0 else None,
+            prefetch_factor=self.cfg.get("prefetch_factor", 2)
+            if num_workers > 0
+            else None,
             persistent_workers=num_workers > 0,
         )
 
-    def val_dataloader(self):
-        """Return the validation dataloader."""
+    def val_dataloader(self) -> DataLoader:
+        """Creates the validation data loader."""
         if self.val_dataset is None:
             raise ValueError("val_dataset is None. Call setup() first.")
         num_workers = self.cfg.get("num_workers", 4)
@@ -114,14 +143,16 @@ class LidarDataModule(L.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=num_workers,
             pin_memory=pin_memory,
-            prefetch_factor=self.cfg.get("prefetch_factor", 2) if num_workers > 0 else None,
+            prefetch_factor=self.cfg.get("prefetch_factor", 2)
+            if num_workers > 0
+            else None,
             persistent_workers=num_workers > 0,
         )
 
 
 class LidarLightningModule(L.LightningModule):
     """
-    LightningModule with ReduceLROnPlateau.
+    LightningModule wrapping the F1Tenth LiDAR neural network architectures.
     """
 
     def __init__(
@@ -130,35 +161,62 @@ class LidarLightningModule(L.LightningModule):
         task: str = "heading",
         **kwargs,
     ):
+        """
+        Initializes the lightning module.
+
+        Args:
+            arch_id: Unique identifier for the network architecture.
+            task: Prediction task ("heading" or "wall").
+            **kwargs: Hyperparameters passed to save_hyperparameters.
+        """
         super().__init__()
-        # Group hypers to reduce instance attributes and satisfies too-many-args
         self.save_hyperparameters()
 
         self.model = get_architecture(arch_id, task=task)
         self.criterion = nn.MSELoss()
 
-        # Added for advanced logging
         self.example_input_array = torch.randn(1, 1, 1080)
         self.train_step_count = 0
 
-    def forward(self, *args, **kwargs):
-        """Forward pass through the model."""
-        x = args[0]
-        return self.model(x)
+    def forward(self, *args: Any, **kwargs: Any) -> torch.Tensor:
+        """
+        Performs a forward pass.
 
-    def training_step(self, *args, **kwargs):
-        """Execute a training step with enhanced logging."""
+        Args:
+            *args: Should contain the input LiDAR tensor at index 0.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            Network output tensor.
+        """
+        x_in = args[0] if args else kwargs.get("x")
+        return self.model(x_in)
+
+    def training_step(
+        self,
+        *args: Any,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        """
+        Executes a training step.
+
+        Args:
+            *args: Should contain (batch, batch_idx).
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            Calculated loss for the step.
+        """
         batch = args[0]
-        x, y = batch
-        y_hat = self(x)
-        loss = self.criterion(y_hat, y)
+        batch_idx = args[1]
+        _ = batch_idx
+        x_in, y_target = batch
+        y_hat = self(x_in)
+        loss = self.criterion(y_hat, y_target)
 
-        # ---- CORE LOSSES ----
         self.log("train/loss", loss, prog_bar=True, on_step=True, on_epoch=True)
 
-        # ---- LR LOGGING ----
         opt = self.optimizers()
-        # Handle case where self.optimizers() might be a list or a single optimizer
         if isinstance(opt, list):
             lr = opt[0].param_groups[0]["lr"]
         else:
@@ -168,8 +226,8 @@ class LidarLightningModule(L.LightningModule):
         self.train_step_count += 1
         return loss
 
-    def on_after_backward(self):
-        """Log gradient norms for health monitoring."""
+    def on_after_backward(self) -> None:
+        """Logs gradient norms to monitor training stability."""
         total_norm = 0.0
         for p in self.parameters():
             if p.grad is not None:
@@ -178,32 +236,48 @@ class LidarLightningModule(L.LightningModule):
         total_norm = total_norm**0.5
         self.log("train/grad_norm", total_norm, on_step=True, prog_bar=False)
 
-    def validation_step(self, *args, **kwargs):
-        """Execute a validation step with MAE tracking."""
+    def validation_step(
+        self,
+        *args: Any,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        """
+        Executes a validation step.
+
+        Args:
+            *args: Should contain (batch, batch_idx).
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            Calculated loss for the step.
+        """
         batch = args[0]
-        x, y = batch
-        y_hat = self(x)
-        loss = self.criterion(y_hat, y)
+        batch_idx = args[1]
+        _ = batch_idx
+        x_in, y_target = batch
+        y_hat = self(x_in)
+        loss = self.criterion(y_hat, y_target)
 
         self.log("val/loss", loss, prog_bar=True, on_epoch=True, sync_dist=False)
 
-        # Mean Absolute Error is helpful for distance/angle regression
-        mae = torch.mean(torch.abs(y_hat - y))
+        mae = torch.mean(torch.abs(y_hat - y_target))
         self.log("val/mae", mae, prog_bar=False, on_epoch=True)
 
         return loss
 
-    def on_train_batch_end(self, outputs, batch, batch_idx):
-        """Log system metrics."""
+    def on_train_batch_end(
+        self, *args: Any, **kwargs: Any
+    ) -> None:
+        """Logs system metrics such as GPU memory usage."""
+        _ = args, kwargs
         if torch.cuda.is_available():
             mem = torch.cuda.memory_allocated() / 1e9
             self.log("sys/gpu_mem_gb", mem, on_step=True, prog_bar=False)
 
-    def on_train_epoch_end(self):
-        """Log weight histograms to debug filter health."""
+    def on_train_epoch_end(self) -> None:
+        """Logs weight histograms for architecture debugging."""
         if self.logger and hasattr(self.logger, "experiment"):
             tb_logger = self.logger.experiment
-            # Check if it has add_histogram (TensorBoard specific)
             if hasattr(tb_logger, "add_histogram"):
                 for name, param in self.named_parameters():
                     if param.requires_grad:
@@ -211,8 +285,8 @@ class LidarLightningModule(L.LightningModule):
                             f"weights/{name}", param, self.current_epoch
                         )
 
-    def configure_optimizers(self):
-        """Configure optimizers and learning rate schedulers."""
+    def configure_optimizers(self) -> dict:
+        """Configures the optimizer and LR scheduler."""
         optimizer = torch.optim.Adam(
             self.parameters(),
             lr=self.hparams.lr,
@@ -315,7 +389,9 @@ def run_single_training(config: dict, arch_id: int):
 def main():
     """Main entry point for the training script."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="scripts/train/config_heading.yaml")
+    parser.add_argument(
+        "--config", type=str, default="scripts/train/config_heading.yaml"
+    )
     args = parser.parse_args()
 
     with open(args.config, "r", encoding="utf-8") as f:
