@@ -3,7 +3,7 @@ Shared utilities and constants for F1TENTH simulation and data generation script
 """
 
 import argparse
-from typing import Optional
+from typing import Any, Optional
 
 # Default map and waypoint configuration
 DEFAULT_MAP = "data/maps/F1/Oschersleben/Oschersleben_map"
@@ -93,7 +93,7 @@ def add_common_sim_args(
     )
 
 
-def setup_env(args: argparse.Namespace, render_mode: Optional[str] = None) -> "gym.Env":
+def setup_env(args: argparse.Namespace, render_mode: Optional[str] = None) -> Any:
     """
     Initializes a standard F1TENTH Gym environment based on CLI arguments.
 
@@ -104,7 +104,7 @@ def setup_env(args: argparse.Namespace, render_mode: Optional[str] = None) -> "g
     Returns:
         The initialized F1TENTH Gym environment.
     """
-    import gym  # pylint: disable=import-outside-toplevel
+    import gymnasium as gym  # pylint: disable=import-outside-toplevel
     from f110_gym.envs.base_classes import (
         Integrator,  # pylint: disable=import-outside-toplevel
     )

@@ -1,6 +1,6 @@
 # Config for Heading Error Angle Prediction
 data:
-  train_path: "data/datasets/lidar_tracking_Oschersleben_map_pure_pursuit_n10000.npz"
+  train_path: "data/datasets/lidar_tracking_combined_pure_pursuit_n17607.npz"
   target_col: "heading_error"
   batch_size: 128
   num_workers: 8

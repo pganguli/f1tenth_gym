@@ -60,9 +60,7 @@ def parse_args():
 
 
 def _init_planners(
-    num_agents: int,
-    agent_waypoints: list[np.ndarray],
-    enable_hybrid: bool
+    num_agents: int, agent_waypoints: list[np.ndarray], enable_hybrid: bool
 ) -> list[Any]:
     """Initializes a list of planners for all agents."""
     planners = []
@@ -80,9 +78,7 @@ def _init_planners(
 
 
 def _setup_rendering(
-    env: Any,
-    num_agents: int,
-    agent_waypoints: list[np.ndarray]
+    env: Any, num_agents: int, agent_waypoints: list[np.ndarray]
 ) -> None:
     """Configures multi-agent rendering callbacks."""
     env.unwrapped.add_render_callback(create_camera_tracking(rotate=True))
@@ -94,9 +90,7 @@ def _setup_rendering(
         color_rgb = COLOR_PALETTE[color_name]
 
         # Draw the static reference path
-        env.unwrapped.add_render_callback(
-            create_waypoint_renderer(agent_waypoints[i])
-        )
+        env.unwrapped.add_render_callback(create_waypoint_renderer(agent_waypoints[i]))
         # Trace the actual driven path
         env.unwrapped.add_render_callback(
             create_trace_renderer(agent_idx=i, color=color_rgb)
@@ -124,10 +118,10 @@ def _run_tracking_sim(
             obs, rewards, term, trunc, _ = env.step(np.array(actions))
 
             if isinstance(term, np.ndarray):
-                done = (term.any() or trunc.any())
+                done = term.any() or trunc.any()
                 laptimes += rewards
             else:
-                done = (term or trunc)
+                done = term or trunc
                 laptimes[0] += rewards
 
             if r_mode:
@@ -170,7 +164,9 @@ def main() -> None:
         _setup_rendering(env, num_agents, agent_waypoints)
         env.render()
 
-    planners = _init_planners(num_agents, agent_waypoints, args.hybrid and r_mode is not None)
+    planners = _init_planners(
+        num_agents, agent_waypoints, args.hybrid and r_mode is not None
+    )
 
     print(f"Starting {num_agents}-agent tracking simulation...")
     t_start = time.time()

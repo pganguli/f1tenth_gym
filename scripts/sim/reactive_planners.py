@@ -8,6 +8,7 @@ import argparse
 import time
 
 import numpy as np
+from cuda.bindings.utils import Any
 from f110_planning.reactive import (
     BubblePlanner,
     DisparityExtenderPlanner,
@@ -128,7 +129,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def _create_planner(args: argparse.Namespace, waypoints: np.ndarray) -> any:
+def _create_planner(args: argparse.Namespace, waypoints: np.ndarray) -> Any:
     """Instantiates the requested reactive planner based on CLI arguments."""
     if args.planner == "bubble":
         kwargs = {"safety_radius": args.safety_radius}
@@ -178,7 +179,7 @@ def _create_planner(args: argparse.Namespace, waypoints: np.ndarray) -> any:
 
 
 def _setup_rendering(
-    env: any, args: argparse.Namespace, waypoints: np.ndarray, planner: any
+    env: Any, args: argparse.Namespace, waypoints: np.ndarray, planner: Any
 ) -> None:
     """Configures environment render callbacks."""
     env.unwrapped.add_render_callback(create_camera_tracking(rotate=True))

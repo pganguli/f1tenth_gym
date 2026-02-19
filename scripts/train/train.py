@@ -299,7 +299,7 @@ class LidarLightningModule(L.LightningModule):
             "optimizer": optimizer,
             "lr_scheduler": {
                 "scheduler": scheduler,
-                "monitor": "val_loss",
+                "monitor": "val/loss",
             },
         }
 
@@ -329,14 +329,14 @@ def run_single_training(config: dict, arch_id: int):
     callbacks = [
         ModelCheckpoint(
             dirpath=f"data/models/checkpoints/{model_name}",
-            filename="best-{epoch:02d}-{val_loss:.4f}",
-            monitor="val_loss",
+            filename="best-{epoch:02d}-{val/loss:.4f}",
+            monitor="val/loss",
             mode="min",
             save_top_k=1,
             save_last=True,
         ),
         EarlyStopping(
-            monitor="val_loss",
+            monitor="val/loss",
             patience=config["training"]["early_stopping_patience"],
             mode="min",
         ),
