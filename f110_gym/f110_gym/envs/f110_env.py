@@ -148,7 +148,8 @@ class F110Env(gym.Env):
         # kwargs extraction
         self.seed = kwargs.get("seed", 12345)
         self.render_mode = kwargs.get("render_mode", "human")
-        self.render_fps = kwargs.get("render_fps", 200)
+        self.render_fps = kwargs.get("render_fps", 100)
+        self.last_render_time = None
 
         map_name = kwargs.get("map")
         if map_name is None:
@@ -555,7 +556,15 @@ class F110Env(gym.Env):
         F110Env.renderer.dispatch_events()
         F110Env.renderer.on_draw()
         F110Env.renderer.flip()
+        
         if self.render_mode == "human":
-            time.sleep(1.0 / self.render_fps)
+            current_time = time.time()
+            if self.last_render_time is not None:
+                # Calculate how much we need to sleep to maintain target FPS
+                elapsed = current_time - self.last_render_time
+                sleep_time = (1.0 / self.render_fps) - elapsed
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
+            self.last_render_time = time.time()
         elif self.render_mode == "human_fast":
             pass

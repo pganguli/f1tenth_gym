@@ -129,6 +129,7 @@ class RendererCamera:
     zoomed_height: int
     x: float
     y: float
+    rotation: float = 0.0
 
 
 @dataclass
@@ -380,12 +381,19 @@ class EnvRenderer(pyglet.window.Window):
 
         # pan camera
         cam = self.camera
-        cam.x += dx * cam.zoom_level
-        cam.y += dy * cam.zoom_level
-        cam.viewport.left -= dx * cam.zoom_level
-        cam.viewport.right -= dx * cam.zoom_level
-        cam.viewport.bottom -= dy * cam.zoom_level
-        cam.viewport.top -= dy * cam.zoom_level
+        if cam.rotation == 0.0:
+            cam.x -= dx * cam.zoom_level
+            cam.y -= dy * cam.zoom_level
+            cam.viewport.left -= dx * cam.zoom_level
+            cam.viewport.right -= dx * cam.zoom_level
+            cam.viewport.bottom -= dy * cam.zoom_level
+            cam.viewport.top -= dy * cam.zoom_level
+        else:
+            # Handle rotation in panning
+            s = np.sin(-cam.rotation)
+            c = np.cos(-cam.rotation)
+            cam.x -= (dx * c - dy * s) * cam.zoom_level
+            cam.y -= (dx * s + dy * c) * cam.zoom_level
 
     def on_mouse_scroll(
         self,
@@ -472,14 +480,28 @@ class EnvRenderer(pyglet.window.Window):
 
         # Set up the projection for 2D rendering with camera
         cam = self.camera
-        self.projection = pyglet.math.Mat4.orthogonal_projection(
+        ortho = pyglet.math.Mat4.orthogonal_projection(
             cam.viewport.left,
             cam.viewport.right,
             cam.viewport.bottom,
             cam.viewport.top,
-            -1,
-            1,
+            -1000,
+            1000,
         )
+
+        if cam.rotation != 0.0:
+            # Create translation matrices to rotate around camera center
+            # However, the camera viewport is already defined around the center
+            # so we just need to translate the world by -camera.x, -camera.y
+            trans_to_origin = pyglet.math.Mat4.from_translation(pyglet.math.Vec3(-cam.x, -cam.y, 0))
+            rot_mat = pyglet.math.Mat4.from_rotation(cam.rotation, (0, 0, 1))
+            
+            # Combine: Translate -> Rotate -> Ortho projection
+            self.projection = ortho @ rot_mat @ trans_to_origin
+        else:
+            # Still need to translate to center on camera x,y even if no rotation
+            trans_to_origin = pyglet.math.Mat4.from_translation(pyglet.math.Vec3(-cam.x, -cam.y, 0))
+            self.projection = ortho @ trans_to_origin
 
         # Draw all batches
         with self.window_block():

@@ -12,7 +12,7 @@ import numpy as np
 from f110_gym.envs.base_classes import Integrator
 from f110_planning.misc import HybridPlanner, ManualPlanner
 from f110_planning.render_callbacks import (
-    camera_tracking,
+    create_camera_tracking,
     create_heading_error_renderer,
     create_trace_renderer,
     create_waypoint_renderer,
@@ -46,13 +46,13 @@ def main():  # pylint: disable=too-many-locals
         num_agents=1,
         timestep=0.01,
         integrator=Integrator.RK4,
-        render_mode="human",
+        render_mode="human_fast",
         render_fps=60,
         max_laps=None,
     )
 
     # Add standard render callbacks
-    env.unwrapped.add_render_callback(camera_tracking)
+    env.unwrapped.add_render_callback(create_camera_tracking(rotate=True))
     env.unwrapped.add_render_callback(render_lidar)
     env.unwrapped.add_render_callback(render_side_distances)
     env.unwrapped.add_render_callback(
