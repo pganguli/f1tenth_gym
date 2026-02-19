@@ -33,10 +33,12 @@ class StanleyPlanner(BasePlanner):
         self,
         wheelbase: float = 0.33,
         waypoints: np.ndarray = np.array([]),
+        max_speed: float = 5.0,
         k_path: float = 5.0,
     ):
         self.wheelbase = wheelbase
         self.waypoints = waypoints
+        self.max_speed = max_speed
         self.k_path = k_path
 
     def calc_theta_and_ef(  # pylint: disable=too-many-locals
@@ -46,13 +48,13 @@ class StanleyPlanner(BasePlanner):
         Calculate the heading and cross-track errors
         Args:
             vehicle_state (numpy.ndarray [4, ]): [x, y, heading, velocity] of the vehicle
-            waypoints (numpy.ndarray [N, 4]): waypoints to track [x, y, velocity, heading]
+            waypoints (numpy.ndarray [N, 2]): waypoints to track [x, y]
         """
-        theta_e, ef, target_index, goal_velocity = calculate_tracking_errors(
+        theta_e, ef, target_index, _ = calculate_tracking_errors(
             vehicle_state, waypoints, self.wheelbase
         )
 
-        return theta_e, ef, target_index, goal_velocity
+        return theta_e, ef, target_index, self.max_speed
 
     def controller(
         self, vehicle_state: np.ndarray, waypoints: np.ndarray, k_path: float

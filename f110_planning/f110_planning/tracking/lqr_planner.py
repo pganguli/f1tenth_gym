@@ -39,6 +39,7 @@ class LQRPlanner(BasePlanner):  # pylint: disable=too-many-instance-attributes
         self,
         wheelbase: float = 0.33,
         waypoints: np.ndarray = np.array([]),
+        max_speed: float = 5.0,
         timestep: float = 0.01,
         matrix_q_1: float = 0.999,
         matrix_q_2: float = 0.0,
@@ -50,6 +51,7 @@ class LQRPlanner(BasePlanner):  # pylint: disable=too-many-instance-attributes
     ):
         self.wheelbase = wheelbase
         self.waypoints = waypoints
+        self.max_speed = max_speed
         self.vehicle_control_e_cog = 0  # e_cg: lateral error of CoG to ref trajectory
         self.vehicle_control_theta_e = 0.0  # theta_e: yaw error to ref trajectory
         self.timestep = timestep
@@ -80,15 +82,21 @@ class LQRPlanner(BasePlanner):  # pylint: disable=too-many-instance-attributes
             goal_velocity (float): target velocity
         """
 
-        theta_e, ef, target_index, goal_velocity = calculate_tracking_errors(
+        theta_e, ef, target_index, _ = calculate_tracking_errors(
             vehicle_state, waypoints, self.wheelbase
         )
 
-        # target heading
-        theta_raceline = waypoints[target_index, 3]
+        # target heading estimation
+        next_index = (target_index + 1) % len(waypoints)
+        dx = waypoints[next_index, 0] - waypoints[target_index, 0]
+        dy = waypoints[next_index, 1] - waypoints[target_index, 1]
+        theta_raceline = np.arctan2(dy, dx)
 
-        # reference curvature
-        kappa_ref = self.waypoints[target_index, 4]
+        # reference curvature (default to 0 if not provided)
+        kappa_ref = 0.0
+
+        # target velocity
+        goal_velocity = self.max_speed
 
         # saving control errors
         self.vehicle_control_e_cog = ef

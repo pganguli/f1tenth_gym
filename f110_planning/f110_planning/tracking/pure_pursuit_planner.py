@@ -68,12 +68,12 @@ class PurePursuitPlanner(BasePlanner):  # pylint: disable=too-few-public-methods
             if i2 is None:
                 return None
             current_waypoint = np.array(
-                [self.waypoints[i2, 0], self.waypoints[i2, 1], self.waypoints[i, 2]]
+                [self.waypoints[i2, 0], self.waypoints[i2, 1], self.max_speed]
             )
             return current_waypoint
 
         if nearest_dist < self.max_reacquire:
-            return self.waypoints[i, :]
+            return np.array([self.waypoints[i, 0], self.waypoints[i, 1], self.max_speed])
 
         return None
 

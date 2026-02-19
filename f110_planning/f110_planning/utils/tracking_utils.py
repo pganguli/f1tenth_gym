@@ -38,10 +38,12 @@ def calculate_tracking_errors(
 ) -> tuple[float, float, int, float]:
     """
     Calculates tracking errors (heading and crosstrack) relative to the front axle.
+    Only uses x (index 0) and y (index 1) from waypoints.
+    Heading is estimated from the segment between the nearest waypoint and the next one.
 
     Args:
         vehicle_state (np.ndarray): [x, y, heading, velocity] of the vehicle.
-        waypoints (np.ndarray): waypoints to track [x, y, velocity, heading, ...].
+        waypoints (np.ndarray): waypoints to track [x, y, ...].
         wheelbase (float): The wheelbase of the vehicle.
 
     Returns:
@@ -49,7 +51,7 @@ def calculate_tracking_errors(
             theta_e (float): heading error
             ef (float): lateral crosstrack error at the front axle
             target_index (int): index of the nearest waypoint
-            goal_velocity (float): target velocity at the nearest waypoint
+            goal_velocity (float): target velocity at the nearest waypoint (returns vehicle velocity as default)
     """
     # distance to the closest point to the front axle center
     fx = vehicle_state[0] + wheelbase * np.cos(vehicle_state[2])
@@ -69,11 +71,15 @@ def calculate_tracking_errors(
     )
     ef = np.dot(vec_dist_nearest_point.T, front_axle_vec_rot_90)
 
-    # heading error
-    theta_raceline = waypoints[target_index, 3]
+    # heading error estimation
+    # Use the next point to estimate heading
+    next_index = (target_index + 1) % len(waypoints)
+    dx = waypoints[next_index, 0] - waypoints[target_index, 0]
+    dy = waypoints[next_index, 1] - waypoints[target_index, 1]
+    theta_raceline = np.arctan2(dy, dx)
     theta_e = pi_2_pi(theta_raceline - vehicle_state[2])
 
-    # target velocity
-    goal_velocity = waypoints[target_index, 2]
+    # velocity (defaulting to current vehicle velocity since we shouldn't rely on waypoint col)
+    goal_velocity = vehicle_state[3]
 
     return theta_e, ef[0], target_index, goal_velocity

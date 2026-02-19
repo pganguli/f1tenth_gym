@@ -46,7 +46,10 @@ DEFAULT_TRACE_COLORS = ["yellow", "cyan", "magenta", "red", "green", "blue"]
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Run F1TENTH waypoint following simulation with configurable agents and noise levels.",
+        description=(
+            "Run F1TENTH waypoint following simulation with "
+            "configurable agents and noise levels."
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -95,7 +98,10 @@ Examples:
     parser.add_argument(
         "--original-waypoints",
         type=str,
-        help="Original waypoints CSV to display as reference markers. If not specified, uses first waypoint file.",
+        help=(
+            "Original waypoints CSV to display as reference markers. "
+            "If not specified, uses first waypoint file."
+        ),
     )
 
     parser.add_argument(

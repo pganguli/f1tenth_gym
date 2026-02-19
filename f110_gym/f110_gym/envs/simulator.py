@@ -176,6 +176,9 @@ class Simulator:
             "linear_vels_x": np.array(
                 [agent.state[3] for agent in self.agents], dtype=np.float64
             ),
+            "steering_angles": np.array(
+                [agent.state[2] for agent in self.agents], dtype=np.float64
+            ),
             "linear_vels_y": np.zeros(self.params.num_agents, dtype=np.float64),
             "ang_vels_z": np.array(
                 [agent.state[5] for agent in self.agents], dtype=np.float64

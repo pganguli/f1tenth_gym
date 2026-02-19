@@ -281,6 +281,12 @@ class F110Env(gym.Env):
                 "linear_vels_x": spaces.Box(
                     low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64
                 ),
+                "steering_angles": spaces.Box(
+                    low=self.params["s_min"],
+                    high=self.params["s_max"],
+                    shape=(self.num_agents,),
+                    dtype=np.float64,
+                ),
                 "linear_vels_y": spaces.Box(
                     low=-np.inf, high=np.inf, shape=(self.num_agents,), dtype=np.float64
                 ),
@@ -385,6 +391,7 @@ class F110Env(gym.Env):
             "poses_x": obs["poses_x"],
             "poses_y": obs["poses_y"],
             "poses_theta": obs["poses_theta"],
+            "steering_angles": obs["steering_angles"],
             "lap_times": obs["lap_times"],
             "lap_counts": obs["lap_counts"],
             "scans": obs["scans"],
@@ -471,6 +478,7 @@ class F110Env(gym.Env):
             "poses_x": obs["poses_x"],
             "poses_y": obs["poses_y"],
             "poses_theta": obs["poses_theta"],
+            "steering_angles": obs["steering_angles"],
             "lap_times": obs["lap_times"],
             "lap_counts": obs["lap_counts"],
             "scans": obs["scans"],
